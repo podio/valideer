@@ -1,3 +1,6 @@
 *.pyc
+dist/
+valideer.egg-info/
+.coverage
 .pydevproject
 .project

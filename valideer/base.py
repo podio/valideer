@@ -73,13 +73,13 @@ class Validator(object):
         except ValidationError:
             return False
 
-    @classmethod
-    def register_factory(cls, func):
-        """Decorator for registering a factory for this validator ``cls``.
+    @staticmethod
+    def register_factory(func):
+        """Decorator for registering a validator factory.
 
-        The decorated factory must be a callable that takes a single parameter 
-        that can be any arbitrary object and returns either an instance of 
-        ``cls`` if it can parse the object successfully, or None otherwise.
+        The decorated factory must be a callable that takes a single parameter
+        that can be any arbitrary object and returns a Validator instance if it
+        can parse the input object successfully, or None otherwise.
         """
         _VALIDATOR_FACTORIES.insert(0, func)
         return func

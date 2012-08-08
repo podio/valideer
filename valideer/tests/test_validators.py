@@ -509,8 +509,6 @@ class TestValidator(unittest.TestCase):
                 validator.validate(value)
             except V.ValidationError as ex:
                 self.assertEqual(str(ex), error, "Actual error: %r" % str(ex))
-            else:
-                self.fail("value %r is not invalid" % value)
 
 
 class OptionalPropertiesTestValidator(TestValidator):

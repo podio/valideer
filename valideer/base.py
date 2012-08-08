@@ -74,6 +74,13 @@ class Validator(object):
             return False
 
     @staticmethod
+    def register(name, validator):
+        """Register a validator instance under the given ``name``."""
+        if not isinstance(validator, Validator):
+            raise TypeError("Validator instance expected, %s given" % validator.__class__)
+        _NAMED_VALIDATORS[name] = validator
+
+    @staticmethod
     def register_factory(func):
         """Decorator for registering a validator factory.
 

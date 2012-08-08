@@ -386,6 +386,14 @@ class TestValidator(unittest.TestCase):
         validator = MyValidator()
         self.assertRaises(NotImplementedError, validator.validate, 1)
 
+    def test_register(self):
+        V.Validator.register("to_int", V.AdaptTo(int, traps=(ValueError, TypeError)))
+        self._testValidation("to_int",
+                             invalid=["12b", "1.2"],
+                             adapted=[(12, 12), ("12", 12), (1.2, 1)])
+
+        self.assertRaises(TypeError, V.Validator.register, "to_int", int)
+
     def test_complex_validation(self):
 
         for valid in [

@@ -22,7 +22,7 @@ class ValidationError(ValueError):
     def __str__(self):
         s = super(ValidationError, self).__str__()
         if self.context:
-            s += " (at %s)" % "".join("[%r]" % context if i > 0 else context
+            s += " (at %s)" % "".join("[%r]" % context if i > 0 else str(context)
                                       for i, context in enumerate(reversed(self.context)))
         return s
 

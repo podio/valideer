@@ -105,7 +105,7 @@ class Enum(Validator):
 class AdaptBy(Validator):
     """A validator that adapts a value using an ``adaptor`` callable."""
 
-    def __init__(self, adaptor, traps=()):
+    def __init__(self, adaptor, traps=Exception):
         """Instantiate this validator.
 
         :param adaptor: The callable ``f(value)`` to adapt values.
@@ -128,7 +128,7 @@ class AdaptBy(Validator):
 class AdaptTo(AdaptBy):
     """A validator that adapts a value to a target class."""
 
-    def __init__(self, target_cls, traps=(), exact=False):
+    def __init__(self, target_cls, traps=Exception, exact=False):
         """Instantiate this validator.
 
         :param target_cls: The target class.

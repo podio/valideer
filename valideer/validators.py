@@ -463,7 +463,7 @@ class Object(Type):
 
     accept_types = collections.Mapping
 
-    OPTIONAL_PROPERTIES = False
+    REQUIRED_PROPERTIES = False
 
     def __init__(self, optional={}, required={}):
         """Instantiate an Object validator.
@@ -511,8 +511,8 @@ def _ObjectFactory(obj):
     """Parse a python ``{name: schema}`` dict as an ``Object`` instance.
 
     A property name can be prepended by "+" or "?" to mark it explicitly as
-    required or optional, respectively. Otherwise ``Object.OPTIONAL_PROPERTIES``
-    is used to determine if properties are optional by default.
+    required or optional, respectively. Otherwise ``Object.REQUIRED_PROPERTIES``
+    is used to determine if properties are required by default.
     """
     if isinstance(obj, dict):
         optional, required = {}, {}
@@ -521,10 +521,10 @@ def _ObjectFactory(obj):
                 required[key[1:]] = value
             elif key.startswith("?"):
                 optional[key[1:]] = value
-            elif Object.OPTIONAL_PROPERTIES:
-                optional[key] = value
-            else:
+            elif Object.REQUIRED_PROPERTIES:
                 required[key] = value
+            else:
+                optional[key] = value
         return Object(optional, required)
 
 

@@ -19,7 +19,7 @@ class TestValidator(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        V.Object.OPTIONAL_PROPERTIES = False
+        V.Object.REQUIRED_PROPERTIES = True
         cls.complex_validator = V.Validator.parse({
             "n": "number",
             "?i": V.Nullable("integer", 0),
@@ -524,7 +524,7 @@ class OptionalPropertiesTestValidator(TestValidator):
     @classmethod
     def setUpClass(cls):
         super(OptionalPropertiesTestValidator, cls).setUpClass()
-        V.Object.OPTIONAL_PROPERTIES = True
+        V.Object.REQUIRED_PROPERTIES = False
         cls.complex_validator = V.Validator.parse({
             "+n": "+number",
             "i": V.Nullable("integer", 0),

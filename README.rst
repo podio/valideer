@@ -194,7 +194,7 @@ Similar to ``@accepts``, the ``@adapts`` decorator provides a handy syntax for
 adapting function inputs::
 
 	>>> from valideer import adapts
-	>>> @adapts(json={"prices": [AdaptBy(float)]})
+	>>> @adapts(json={"prices": [AdaptTo(float)]})
 	... def get_sum_price(json):
 	...     return sum(json["prices"])
 	...
@@ -211,14 +211,140 @@ The ``validate`` method also accepts an optional boolean ``adapt=True`` paramete
 if ``False``, the validator may choose to perform only validation. This can be
 useful if adaptation happens to be significantly more expensive than validation.
 
+Explicit validator creation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Explicit schema definition
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-*TODO*
+The usual way to create a validator is by passing an appropriate nested structure
+to ``Validator.parse``, as outlined above.  This allows for some concise schema
+definitions with minimal boilerplate. In case this seems too "magic" or
+"unpythonic" for your taste however, a validator can also be created explicitly
+from regular Python classes. Here's how to instantiate explicitly an equivalent
+``product`` validator::
+
+	>>> from valideer import Object, HomogeneousSequence, Number, String, Range
+	>>> validator = Object(
+	...     required={
+	...         "id": Number(),
+	...         "name": String(),
+	...         "price": Range(Number(), min_value=0),
+	...     },
+	...     optional={
+	...         "tags": HomogeneousSequence(String()),
+	...         "stock": Object(
+	...             optional={
+	...                 "warehouse": Number(),
+	...                 "retail": Number(),
+	...             }
+	...         )
+	...     }
+	... )
+
 
 Built-in Validators
 -------------------
-*TODO*
+``valideer`` comes with several predefined validators, each implemented as a
+``Validator`` subclass. A validator can optionally specify a "name" or some other
+factory function that can be used by ``Validator.parse`` as a shortcut for
+creating instances of this validator. The currently available validators and
+their respective shortcuts are the following:
+
+Basic
+~~~~~
+
+.. list-table::
+   :widths: 10 10 40
+   :header-rows: 1
+
+   * - Validator
+     - Shortcut
+     - Description
+
+   * - ``valideer.Boolean()``
+     - ``"boolean"``
+     - Accepts ``bool`` instances.
+
+   * - ``valideer.Integer()``
+     - ``"integer"``
+     - Accepts integers (``int`` and ``long`` instances excluding ``bool``).
+
+   * - ``valideer.Number()``
+     - ``"number"``
+     - Accepts numbers (``int``, ``long``, ``float`` and ``Decimal``
+       instances excluding ``bool``).
+
+   * - ``valideer.Date()``
+     - ``"date"``
+     - Accepts ``datetime.date`` instances.
+
+   * - ``valideer.Time()``
+     - ``"time"``
+     - Accepts ``datetime.time`` instances.
+
+   * - ``valideer.Datetime()``
+     - ``"datetime"``
+     - Accepts ``datetime.datetime`` instances.
+
+   * - ``valideer.String(min_length=None, max_length=None)``
+     - ``"string"``
+     - Accepts strings (``basestring`` instances).
+
+   * - ``valideer.Pattern(regexp)``
+     - *Compiled regular expression*
+     - Accepts strings that match the given regular expression.
+
+   * - ``valideer.Type(accept_types=None, reject_types=None)``
+     - *Python type*
+     - Accepts instances of the given ``accept_types`` but only if they are not
+       instances of ``reject_types``.
+
+Containers
+~~~~~~~~~~
+
+.. list-table::
+   :widths: 10 10 40
+   :header-rows: 1
+
+   * - Validator
+     - Shortcut
+     - Description
+
+   * - ``valideer.HomogeneousSequence(item_schema=None, min_length=None, max_length=None)``
+     - ``[`` *item_schema* ``]``
+     - Accepts sequences (``collections.Sequence`` instances excluding strings)
+       with elements that are valid for ``item_schema`` and length between
+       ``min_length`` and ``max_length`` (if any).
+
+   * - ``valideer.HeterogeneousSequence(*item_schemas)``
+     - ``(`` *item_schema*, *item_schema*, ..., *item_schema* ``)``
+     - Accepts fixed length sequences (``collections.Sequence`` instances
+       excluding strings) where the ``i``-th element is valid for the ``i``-th
+       ``item_schema``.
+
+   * - ``valideer.Mapping(key_schema=None, value_schema=None)``
+     -
+     - Accepts mappings (``collections.Mapping`` instances) with keys that are
+       valid for ``key_schema`` (if any) and values that are valid for ``value_schema``
+       (if any).
+
+   * - ``valideer.Object(optional={}, required={})``
+     - ``{`` *key*: *value_schema*, *key*: *value_schema*, ..., *key*: *value_schema* ``}``
+     - Accepts JSON-like objects (``collections.Mapping`` instances with string
+       keys).
+
+Composite
+~~~~~~~~~
+
+.. list-table::
+   :widths: 10 10 40
+   :header-rows: 1
+
+   * - Validator
+     - Shortcut
+     - Description
+
+   * - TODO
+     - TODO
+     - TODO
 
 Defining Custom Validators
 --------------------------

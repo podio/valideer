@@ -215,6 +215,7 @@ class TestValidator(unittest.TestCase):
         self._testValidation(V.AdaptBy(int, traps=(ValueError, TypeError)),
                              invalid=["12b", "1.2", {}, (), []],
                              adapted=[(12, 12), ("12", 12), (1.2, 1)])
+        self.assertRaises(TypeError, V.AdaptBy(hex, traps=()).validate, 1.2)
 
     def test_adapt_to(self):
         self.assertRaises(TypeError, V.AdaptTo, hex)

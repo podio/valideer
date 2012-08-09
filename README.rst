@@ -243,108 +243,129 @@ from regular Python classes. Here's how to instantiate explicitly an equivalent
 Built-in Validators
 -------------------
 ``valideer`` comes with several predefined validators, each implemented as a
-``Validator`` subclass. A validator can optionally specify a "name" or some other
-factory function that can be used by ``Validator.parse`` as a shortcut for
-creating instances of this validator. The currently available validators and
-their respective shortcuts are the following:
+``Validator`` subclass. A validator can optionally specify a "name" or a factory
+function that can be used by ``Validator.parse`` as a shortcut for creating
+instances of this validator. Here are the currently available validators:
 
 Basic
 ~~~~~
 
-.. list-table::
-   :widths: 10 10 40
-   :header-rows: 1
+* ``valideer.Boolean()``: Accepts ``bool`` instances.
 
-   * - Validator
-     - Shortcut
-     - Description
+  :Shortcut: ``"boolean"``
 
-   * - ``valideer.Boolean()``
-     - ``"boolean"``
-     - Accepts ``bool`` instances.
+* ``valideer.Integer()``: Accepts integers (``int`` and ``long`` instances
+  excluding ``bool``).
 
-   * - ``valideer.Integer()``
-     - ``"integer"``
-     - Accepts integers (``int`` and ``long`` instances excluding ``bool``).
+  :Shortcut: ``"integer"``
 
-   * - ``valideer.Number()``
-     - ``"number"``
-     - Accepts numbers (``int``, ``long``, ``float`` and ``Decimal``
-       instances excluding ``bool``).
+* ``valideer.Number()``: Accepts numbers (``int``, ``long``, ``float`` and ``Decimal``
+  instances excluding ``bool``).
 
-   * - ``valideer.Date()``
-     - ``"date"``
-     - Accepts ``datetime.date`` instances.
+  :Shortcut: ``"number"``
 
-   * - ``valideer.Time()``
-     - ``"time"``
-     - Accepts ``datetime.time`` instances.
+* ``valideer.Date()``: Accepts ``datetime.date`` instances.
 
-   * - ``valideer.Datetime()``
-     - ``"datetime"``
-     - Accepts ``datetime.datetime`` instances.
+  :Shortcut: ``"date"``
 
-   * - ``valideer.String(min_length=None, max_length=None)``
-     - ``"string"``
-     - Accepts strings (``basestring`` instances).
+* ``valideer.Time()``: Accepts ``datetime.time`` instances.
 
-   * - ``valideer.Pattern(regexp)``
-     - *Compiled regular expression*
-     - Accepts strings that match the given regular expression.
+  :Shortcut: ``"time"``
 
-   * - ``valideer.Type(accept_types=None, reject_types=None)``
-     - *Python type*
-     - Accepts instances of the given ``accept_types`` but only if they are not
-       instances of ``reject_types``.
+* ``valideer.Datetime()``: Accepts ``datetime.datetime`` instances.
+
+  :Shortcut: ``"datetime"``
+
+* ``valideer.String(min_length=None, max_length=None)``: Accepts strings
+  (``basestring`` instances).
+
+  :Shortcut: ``"string"``
+
+* ``valideer.Pattern(regexp)``: Accepts strings that match the given regular
+  expression.
+
+  :Shortcut: *Compiled regular expression*
+
+* ``valideer.Type(accept_types=None, reject_types=None)``: Accepts instances of
+  the given ``accept_types`` but excluding instances of ``reject_types``.
+
+  :Shortcut: *Python type*
+
+* ``valideer.Enum(values)``: Accepts a fixed set of values.
+
+  :Shortcut: *N/A*
 
 Containers
 ~~~~~~~~~~
 
-.. list-table::
-   :widths: 10 10 40
-   :header-rows: 1
+* ``valideer.HomogeneousSequence(item_schema=None, min_length=None, max_length=None)``:
+  Accepts sequences (``collections.Sequence`` instances excluding strings) with
+  elements that are valid for ``item_schema`` (if specified) and length between
+  ``min_length`` and ``max_length`` (if specified).
 
-   * - Validator
-     - Shortcut
-     - Description
+  :Shortcut: [*item_schema*]
 
-   * - ``valideer.HomogeneousSequence(item_schema=None, min_length=None, max_length=None)``
-     - ``[`` *item_schema* ``]``
-     - Accepts sequences (``collections.Sequence`` instances excluding strings)
-       with elements that are valid for ``item_schema`` and length between
-       ``min_length`` and ``max_length`` (if any).
+* ``valideer.HeterogeneousSequence(*item_schemas)``: Accepts fixed length
+  sequences (``collections.Sequence`` instances excluding strings) where the
+  ``i``-th element is valid for the ``i``-th ``item_schema``.
 
-   * - ``valideer.HeterogeneousSequence(*item_schemas)``
-     - ``(`` *item_schema*, *item_schema*, ..., *item_schema* ``)``
-     - Accepts fixed length sequences (``collections.Sequence`` instances
-       excluding strings) where the ``i``-th element is valid for the ``i``-th
-       ``item_schema``.
+  :Shortcut: (*item_schema*, *item_schema*, ..., *item_schema*)
 
-   * - ``valideer.Mapping(key_schema=None, value_schema=None)``
-     -
-     - Accepts mappings (``collections.Mapping`` instances) with keys that are
-       valid for ``key_schema`` (if any) and values that are valid for ``value_schema``
-       (if any).
+* ``valideer.Mapping(key_schema=None, value_schema=None)``: Accepts mappings
+  (``collections.Mapping`` instances) with keys that are valid for ``key_schema``
+  (if specified) and values that are valid for ``value_schema`` (if specified).
 
-   * - ``valideer.Object(optional={}, required={})``
-     - ``{`` *key*: *value_schema*, *key*: *value_schema*, ..., *key*: *value_schema* ``}``
-     - Accepts JSON-like objects (``collections.Mapping`` instances with string
-       keys).
+  :Shortcut: *N/A*
+
+* ``valideer.Object(optional={}, required={})``: Accepts JSON-like objects
+  (``collections.Mapping`` instances with string keys). Properties that are
+  specified as ``optional`` or ``required`` are validated against the respective
+  value schema. Any additional unspecified properties are implicitly valid.
+
+  :Shortcut: {"*property*": *value_schema*, "*property*": *value_schema*, ...,
+  			  "*property*": *value_schema*}. Properties that start with ``+``
+  			  are required, the rest are optional.
+
+Adaptors
+~~~~~~~~
+
+* ``valideer.AdaptBy(adaptor, traps=Exception)``: Adapts a value by calling
+  ``adaptor(value)``. Any raised exception that is instance of ``traps`` is
+  wrapped into a ``ValidationError``.
+
+  :Shortcut: *N/A*
+
+* ``valideer.AdaptTo(adaptor, traps=Exception, exact=False)``: Similar to
+  ``AdaptBy`` but for types. Any value that is already instance of ``adaptor``
+  is returned as is, otherwise it is adapted by calling ``adaptor(value)``. If
+  ``exact`` is ``True``, instances of ``adaptor`` subclasses are also adapted.
+
+  :Shortcut: *N/A*
 
 Composite
 ~~~~~~~~~
 
-.. list-table::
-   :widths: 10 10 40
-   :header-rows: 1
+* ``valideer.Nullable(schema, default=None)``: Accepts values that are valid for
+  ``schema`` or ``None``. ``default`` is returned as the adapted value of ``None``.
 
-   * - Validator
-     - Shortcut
-     - Description
+  :Shortcut: "?{*validator_name*}". For example "?integer" accepts integers and
+  			 ``None``.
 
-   * - TODO
-     - TODO
-     - TODO
+* ``valideer.NonNullable(schema=None)``: Accepts values that are valid for
+  ``schema`` (if specified) except for ``None``.
+
+  :Shortcut: "+{*validator_name*}"
+
+* ``valideer.Range(schema, min_value=None, max_value=None)``: Accepts values that
+  are valid for ``schema`` and within the given ``[min_value, max_value]`` range.
+
+  :Shortcut: *N/A*
+
+* ``valideer.AnyOf(*schemas)``: Accepts values that are valid for at least one
+  of the component ``schemas``.
+
+  :Shortcut: *N/A*
+
 
 Defining Custom Validators
 --------------------------

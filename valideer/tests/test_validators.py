@@ -493,11 +493,11 @@ class TestValidator(unittest.TestCase):
             ({},
              "Invalid value {}: Missing required properties: ['foo']"),
             ({"foo": "3"},
-             "Invalid value '3': Must be int, long, float or Decimal (at foo)"),
+             "Invalid value '3': Must be Number (at foo)"),
             ({"foo": 3, "bar":None},
              "Invalid value None: Must be Sequence (at bar)"),
             ({"foo": 3, "bar":[1, "2", 3]},
-             "Invalid value '2': Must be int or long (at bar[1])"),
+             "Invalid value '2': Must be Integral (at bar[1])"),
         ])
 
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=()):

@@ -2,8 +2,8 @@ from .base import Validator, ValidationError
 from itertools import izip
 import collections
 import datetime
-import decimal
 import inspect
+import numbers
 import re
 
 
@@ -192,10 +192,10 @@ class Boolean(Type):
 
 
 class Integer(Type):
-    """A validator that accepts int (but not bool) and long values."""
+    """A validator that accepts integers (numbers.Integral instances) but not bool."""
 
     name = "integer"
-    accept_types = (int, long)
+    accept_types = numbers.Integral
     reject_types = bool
 
 
@@ -229,13 +229,10 @@ class Range(Validator):
 
 
 class Number(Type):
-    """A validator that accepts numeric values.
-
-    By default it accepts int, long, float and Decimal values, but excludes bool.
-    """
+    """A validator that accepts any numbers (but not bool)."""
 
     name = "number"
-    accept_types = (int, long, float, decimal.Decimal)
+    accept_types = numbers.Number
     reject_types = bool
 
 

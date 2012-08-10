@@ -248,13 +248,13 @@ Basic
 
   :Shortcut: ``"boolean"``
 
-* ``valideer.Integer()``: Accepts integers (``int`` and ``long`` instances
-  excluding ``bool``).
+* ``valideer.Integer()``: Accepts integers (``numbers.Integral`` instances),
+  excluding ``bool``.
 
   :Shortcut: ``"integer"``
 
-* ``valideer.Number()``: Accepts numbers (``int``, ``long``, ``float`` and ``Decimal``
-  instances excluding ``bool``).
+* ``valideer.Number()``: Accepts numbers (``numbers.Number`` instances),
+  excluding ``bool``.
 
   :Shortcut: ``"number"``
 

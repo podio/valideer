@@ -1,3 +1,4 @@
+include LICENCE
 include README
 include README.rst
 include MANIFEST.in

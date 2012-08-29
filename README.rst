@@ -8,7 +8,7 @@ It started out as a simpler version of `JSON Schema`_ for validating JSON
 structures but has since been extended to provide adaptation and handling of
 arbitrary Python objects.
 
-**Key features**:
+**At a Glance**:
 
 - Supports both validation (check if a value is valid) and adaptation (convert
   a valid input to an appropriate output).
@@ -24,13 +24,13 @@ arbitrary Python objects.
   Web form validation).
 - Well tested: Extensive test suite with 100% coverage.
 - Production ready: Used for validating every access to the `Podio API`_.
-- Licence: TBD.
+- Licence: MIT.
 
 
 Installation
 ------------
 
-To install ``valideer``, simply run::
+Valideer requires Python 2.7. To install run::
 
     pip install valideer
 

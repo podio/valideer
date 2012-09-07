@@ -54,7 +54,7 @@ report::
 	---------------------------------------------------
 	TOTAL                   386      0   100%
 	----------------------------------------------------------------------
-	Ran 78 tests in 0.064s
+	Ran 80 tests in 0.113s
 
 
 Basic Use
@@ -280,10 +280,16 @@ Basic
 
   :Shortcut: *Compiled regular expression*
 
+* ``valideer.Condition(predicate, traps=Exception)``: Accepts values for which
+  ``predicate(value)`` is true. Any raised exception that is instance of ``traps``
+  is re-raised as a ``ValidationError``.
+
+  :Shortcut: *Python function or method*.
+
 * ``valideer.Type(accept_types=None, reject_types=None)``: Accepts instances of
   the given ``accept_types`` but excluding instances of ``reject_types``.
 
-  :Shortcut: *Python type*
+  :Shortcut: *Python type*. For example ``int`` is equivalent to ``valideer.Type(int)``.
 
 * ``valideer.Enum(values)``: Accepts a fixed set of values.
 

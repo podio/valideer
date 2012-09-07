@@ -102,6 +102,41 @@ class Enum(Validator):
         raise ValidationError("Must be one of %r" % list(self.values), value)
 
 
+class Condition(Validator):
+    """A validator that accepts a value using a callable ``predicate``.
+
+    A value is accepted if ``predicate(value)`` is true.
+    """
+
+    def __init__(self, predicate, traps=Exception):
+        if not inspect.isroutine(predicate):
+            raise TypeError("Routine expected, %s given" % predicate.__class__)
+        self._predicate = predicate
+        self._traps = traps
+
+    def validate(self, value, adapt=True):
+        if self._traps:
+            try:
+                is_valid = self._predicate(value)
+            except self._traps:
+                is_valid = False
+        else:
+            is_valid = self._predicate(value)
+
+        if is_valid:
+            return value
+
+        raise ValidationError("Must satisfy %s" %
+                              getattr(self._predicate, "__name__", self._predicate),
+                              value)
+
+@Condition.register_factory
+def _ConditionFactory(obj):
+    """Parse a function or method as a Condition validator."""
+    if inspect.isroutine(obj):
+        return Condition(obj)
+
+
 class AdaptBy(Validator):
     """A validator that adapts a value using an ``adaptor`` callable."""
 
@@ -140,7 +175,7 @@ class AdaptTo(AdaptBy):
             returned as is.
         """
         if not inspect.isclass(target_cls):
-            raise TypeError("Type expected, %s given" % target_cls)
+            raise TypeError("Type expected, %s given" % target_cls.__class__)
         self._exact = exact
         super(AdaptTo, self).__init__(target_cls, traps)
 

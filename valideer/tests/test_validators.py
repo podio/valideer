@@ -208,6 +208,34 @@ class TestValidator(unittest.TestCase):
                              valid=[1, {"foo" : 1}],
                              invalid=[{"foo" : 1.1}])
 
+    def test_condition(self):
+        def is_odd(n): return n % 2 == 1
+        is_even = lambda n: n % 2 == 0
+
+        class C(object):
+            def is_odd_method(self, n): return is_odd(n)
+            def is_even_method(self, n): return is_even(n)
+            is_odd_static = staticmethod(is_odd)
+            is_even_static = staticmethod(is_even)
+
+        for obj in is_odd, C().is_odd_method, C.is_odd_static:
+            self._testValidation(obj,
+                                 valid=[1, 3L, -11, 9.0, True],
+                                 invalid=[6, 2.1, False, "1", []])
+
+        for obj in is_even, C().is_even_method, C.is_even_static:
+            self._testValidation(obj,
+                                 valid=[6, 2L, -42, 4.0, 0, 0.0, False],
+                                 invalid=[1, 2.1, True, "2", []])
+
+        self._testValidation(str.isalnum,
+                             valid=["abc", "123", "ab32c"],
+                             invalid=["a+b", "a 1", "", True, 2])
+
+        self.assertRaises(TypeError, V.Condition, C)
+        self.assertRaises(TypeError, V.Condition(is_even, traps=()).validate, [2, 4])
+
+
     def test_adapt_by(self):
         self._testValidation(V.AdaptBy(hex, traps=TypeError),
                              invalid=[1.2, "1"],

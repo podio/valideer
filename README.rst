@@ -2,11 +2,7 @@
 Valideer
 ========
 
-`valideer`_ is a Python package for simple and extensible data validation and
-adaptation that tries to "make easy things easy and hard things possible".
-It started out as a simpler version of `JSON Schema`_ for validating JSON
-structures but has since been extended to provide adaptation and handling of
-arbitrary Python objects.
+Lightweight data validation and adaptation library for Python.
 
 **At a Glance**:
 

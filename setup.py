@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 setup(
     name="valideer",
     version="0.1",
-    description="Lightweight validation and adaptation library",
+    description="Lightweight data validation and adaptation library for Python",
     long_description=open("README.rst").read(),
     url="https://github.com/podio/valideer",
     author="George Sakkis",

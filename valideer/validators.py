@@ -204,11 +204,10 @@ class Type(Validator):
             self.reject_types = reject_types
 
     def validate(self, value, adapt=True):
-        if not isinstance(value, self.accept_types):
-            raise ValidationError("Must be %s" % _format_types(self.accept_types),
-                                  value)
-        if isinstance(value, self.reject_types):
-            raise ValidationError("Must not be %s" % _format_types(self.reject_types),
+        if not isinstance(value, self.accept_types) or isinstance(value, self.reject_types):
+            humanized_name = self.name or _format_types(self.accept_types)
+            raise ValidationError("Must be %s, %s was given" %
+                                  (humanized_name, get_type_name(value.__class__)),
                                   value)
         return value
 
@@ -560,10 +559,23 @@ def _ObjectFactory(obj):
         return Object(optional, required)
 
 
+_TYPE_NAMES = {}
+
+def set_name_for_types(name, *types):
+    """Associate one or more types with an alternative human-friendly name."""
+    for t in types:
+        _TYPE_NAMES[t] = name
+
+def reset_type_names():
+    _TYPE_NAMES.clear()
+
+def get_type_name(type):
+    return _TYPE_NAMES.get(type) or type.__name__
+
 def _format_types(types):
     if inspect.isclass(types):
         types = (types,)
-    names = [t.__name__ for t in types]
+    names = map(get_type_name, types)
     s = names[-1]
     if len(names) > 1:
         s = ", ".join(names[:-1]) + " or " + s

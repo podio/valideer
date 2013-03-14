@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
+import collections
 import re
 import unittest
 import valideer as V
@@ -20,6 +21,7 @@ class TestValidator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         V.Object.REQUIRED_PROPERTIES = True
+        V.validators.reset_type_names()
         cls.complex_validator = V.Validator.parse({
             "n": "number",
             "?i": V.Nullable("integer", 0),
@@ -517,15 +519,36 @@ class TestValidator(unittest.TestCase):
     def test_error_message(self):
         self._testValidation({"+foo": "number", "?bar":["integer"]}, errors=[
             (42,
-             "Invalid value 42: Must be Mapping"),
+             "Invalid value 42: Must be Mapping, int was given"),
             ({},
              "Invalid value {}: Missing required properties: ['foo']"),
             ({"foo": "3"},
-             "Invalid value '3': Must be Number (at foo)"),
+             "Invalid value '3': Must be number, str was given (at foo)"),
             ({"foo": 3, "bar":None},
-             "Invalid value None: Must be Sequence (at bar)"),
+             "Invalid value None: Must be Sequence, NoneType was given (at bar)"),
             ({"foo": 3, "bar":[1, "2", 3]},
-             "Invalid value '2': Must be Integral (at bar[1])"),
+             "Invalid value '2': Must be integer, str was given (at bar[1])"),
+        ])
+
+    def test_error_message_json_type_names(self):
+        V.set_name_for_types("null", type(None))
+        V.set_name_for_types("integer", int, long)
+        V.set_name_for_types("number", float)
+        V.set_name_for_types("string", str, unicode)
+        V.set_name_for_types("array", list, collections.Sequence)
+        V.set_name_for_types("object", dict, collections.Mapping)
+
+        self._testValidation({"+foo": "number", "?bar":["integer"]}, errors=[
+            (42,
+             "Invalid value 42: Must be object, integer was given"),
+            ({},
+             "Invalid value {}: Missing required properties: ['foo']"),
+            ({"foo": "3"},
+             "Invalid value '3': Must be number, string was given (at foo)"),
+            ({"foo": 3, "bar":None},
+             "Invalid value None: Must be array, null was given (at bar)"),
+            ({"foo": 3, "bar":[1, "2", 3]},
+             "Invalid value '2': Must be integer, string was given (at bar[1])"),
         ])
 
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=()):

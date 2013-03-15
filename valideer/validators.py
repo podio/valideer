@@ -82,11 +82,11 @@ class Enum(Validator):
         - values: The collection of valid values.
     """
 
-    values = None
+    values = ()
 
     def __init__(self, values=None):
         super(Enum, self).__init__()
-        if not values:
+        if values is None:
             values = self.values
         try:
             self.values = set(values)

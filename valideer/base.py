@@ -11,8 +11,11 @@ class SchemaError(Exception):
 class ValidationError(ValueError):
     """A value is invalid for a given validator."""
 
-    def __init__(self, msg, value):
-        msg = "Invalid value %r: %s" % (value, msg)
+    _UNDEFINED = object()
+
+    def __init__(self, msg, value=_UNDEFINED):
+        if value is not self._UNDEFINED:
+            msg = "Invalid value %r: %s" % (value, msg)
         super(ValidationError, self).__init__(msg)
         self.context = []
 

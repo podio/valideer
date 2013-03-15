@@ -19,8 +19,11 @@ class AnyOf(Validator):
                 return validator.validate(value, adapt)
             except ValidationError:
                 pass
-        raise ValidationError("Is not validated by %s" %
-            _format_types([v.__class__ for v in self._validators]), value)
+        self.error(value)
+
+    def error(self, value):
+        humanized_name = _format_types(v.__class__ for v in self._validators)
+        raise ValidationError("Is not a valid %s" % humanized_name, value)
 
 
 class Nullable(Validator):
@@ -63,10 +66,14 @@ class NonNullable(Validator):
 
     def validate(self, value, adapt=True):
         if value is None:
-            raise ValidationError("Value must not be null")
+            self.error(value)
         if self._validator is not None:
             return self._validator.validate(value, adapt)
         return value
+
+    def error(self, value):
+        raise ValidationError("Must not be null", value)
+
 
 @NonNullable.register_factory
 def _NonNullableFactory(obj):
@@ -99,7 +106,11 @@ class Enum(Validator):
                 return value
         except TypeError: # unhashable
             pass
-        raise ValidationError("Must be one of %r" % list(self.values), value)
+        self.error(value)
+
+    def error(self, value):
+        humanized_name = "{%s}" % ", ".join(map(repr, self.values))
+        raise ValidationError("Must be one of %s" % humanized_name, value)
 
 
 class Condition(Validator):
@@ -123,12 +134,15 @@ class Condition(Validator):
         else:
             is_valid = self._predicate(value)
 
-        if is_valid:
-            return value
+        if not is_valid:
+            self.error(value)
 
-        raise ValidationError("Must satisfy %s" %
-                              getattr(self._predicate, "__name__", self._predicate),
-                              value)
+        return value
+
+    def error(self, value):
+        humanized_name = getattr(self._predicate, "__name__", self._predicate)
+        raise ValidationError("Must satisfy %s" % humanized_name, value)
+
 
 @Condition.register_factory
 def _ConditionFactory(obj):
@@ -205,11 +219,18 @@ class Type(Validator):
 
     def validate(self, value, adapt=True):
         if not isinstance(value, self.accept_types) or isinstance(value, self.reject_types):
-            humanized_name = self.name or _format_types(self.accept_types)
-            raise ValidationError("Must be %s, %s was given" %
-                                  (humanized_name, get_type_name(value.__class__)),
-                                  value)
+            self.error(value)
         return value
+
+    def error(self, value):
+        raise ValidationError("Must be %s, %s was given" %
+                              (self.humanized_name, get_type_name(value.__class__)),
+                              value)
+
+    @property
+    def humanized_name(self):
+         return self.name or _format_types(self.accept_types)
+
 
 @Type.register_factory
 def _TypeFactory(obj):
@@ -338,9 +359,13 @@ class Pattern(String):
     def validate(self, value, adapt=True):
         super(Pattern, self).validate(value)
         if not self.regexp.match(value):
-            raise ValidationError("Does not match pattern %s" % self.regexp.pattern,
-                                  value)
+            self.error(value)
         return value
+
+    def error(self, value):
+        raise ValidationError("Does not match pattern %s" % self.regexp.pattern,
+                              value)
+
 
 @Pattern.register_factory
 def _PatternFactory(obj):

@@ -11,11 +11,8 @@ class SchemaError(Exception):
 class ValidationError(ValueError):
     """A value is invalid for a given validator."""
 
-    _UNDEFINED = object()
-
-    def __init__(self, msg, value=_UNDEFINED):
-        if value is not self._UNDEFINED:
-            msg = "Invalid value %r: %s" % (value, msg)
+    def __init__(self, msg, value):
+        msg = "Invalid value %r: %s" % (value, msg)
         super(ValidationError, self).__init__(msg)
         self.context = []
 
@@ -72,6 +69,18 @@ class Validator(object):
             return True
         except ValidationError:
             return False
+
+    def error(self, value):
+        """Helper method that can be called when ``value`` is deemed invalid.
+
+        Can be overriden to provide customized ``ValidationError``s.
+        """
+        name = self.name
+        if name:
+            msg = "Must be %s" % name
+        else:
+            msg = "Validation failed"
+        raise ValidationError(msg, value)
 
     @staticmethod
     def register(name, validator):

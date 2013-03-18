@@ -538,18 +538,28 @@ class TestValidator(unittest.TestCase):
         V.set_name_for_types("array", list, collections.Sequence)
         V.set_name_for_types("object", dict, collections.Mapping)
 
-        self._testValidation({"+foo": "number", "?bar":["integer"]}, errors=[
+        self._testValidation({"+foo": "number",
+                              "?bar":["integer"],
+                              "?baz": V.AnyOf("number", ["number"]),
+                              "?opt": "?string",
+                              }, errors=[
             (42,
              "Invalid value 42: Must be object, integer was given"),
             ({},
              "Invalid value {}: Missing required properties: ['foo']"),
             ({"foo": "3"},
              "Invalid value '3': Must be number, string was given (at foo)"),
+            ({"foo": None},
+             "Invalid value None: Must be number, null was given (at foo)"),
             ({"foo": 3, "bar":None},
              "Invalid value None: Must be array, null was given (at bar)"),
             ({"foo": 3, "bar":[1, "2", 3]},
              "Invalid value '2': Must be integer, string was given (at bar[1])"),
-        ])
+            ({"foo": 3, "baz":"23"},
+             "Invalid value '23': Must be number or array, string was given (at baz)"),
+            ({"foo": 3, "opt":12},
+             "Invalid value 12: Must be string or null, integer was given (at opt)"),
+            ])
 
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=()):
         validator = V.Validator.parse(obj)

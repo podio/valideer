@@ -21,9 +21,9 @@ class AnyOf(Validator):
                 pass
         self.error(value)
 
-    def error(self, value):
-        humanized_name = _format_types(v.__class__ for v in self._validators)
-        raise ValidationError("Is not a valid %s" % humanized_name, value)
+    @property
+    def humanized_name(self):
+        return " or ".join(v.humanized_name for v in self._validators)
 
 
 class Nullable(Validator):
@@ -42,7 +42,14 @@ class Nullable(Validator):
     def validate(self, value, adapt=True):
         if value is None:
             return self.default
-        return self._validator.validate(value, adapt)
+        try:
+            return self._validator.validate(value, adapt)
+        except ValidationError:
+            self.error(value)
+
+    @property
+    def humanized_name(self):
+        return "%s or null" % self._validator.humanized_name
 
 
 @Nullable.register_factory
@@ -71,8 +78,9 @@ class NonNullable(Validator):
             return self._validator.validate(value, adapt)
         return value
 
-    def error(self, value):
-        raise ValidationError("Must not be null", value)
+    @property
+    def humanized_name(self):
+        return self._validator.humanized_name if self._validator else "non null"
 
 
 @NonNullable.register_factory

@@ -148,7 +148,7 @@ class Condition(Validator):
         return value
 
     def error(self, value):
-        raise ValidationError("Must satisfy predicate %s" % self.humanized_name, value)
+        raise ValidationError("must satisfy predicate %s" % self.humanized_name, value)
 
     @property
     def humanized_name(self):
@@ -280,10 +280,10 @@ class Range(Validator):
         value = self._validator.validate(value, adapt=adapt)
 
         if self._min_value is not None and value < self._min_value:
-            raise ValidationError("Must not be less than %d" %
+            raise ValidationError("must not be less than %d" %
                                   self._min_value, value)
         if self._max_value is not None and value > self._max_value:
-            raise ValidationError("Must not be larger than %d" %
+            raise ValidationError("must not be larger than %d" %
                                   self._max_value, value)
 
         return value
@@ -339,10 +339,10 @@ class String(Type):
     def validate(self, value, adapt=True):
         super(String, self).validate(value)
         if self._min_length is not None and len(value) < self._min_length:
-            raise ValidationError("Must be at least %d characters long" %
+            raise ValidationError("must be at least %d characters long" %
                                   self._min_length, value)
         if self._max_length is not None and len(value) > self._max_length:
-            raise ValidationError("Must be at most %d characters long" %
+            raise ValidationError("must be at most %d characters long" %
                                   self._max_length, value)
         return value
 
@@ -369,7 +369,7 @@ class Pattern(String):
         return value
 
     def error(self, value):
-        raise ValidationError("Must match match %s" % self.humanized_name, value)
+        raise ValidationError("must match %s" % self.humanized_name, value)
 
     @property
     def humanized_name(self):
@@ -405,10 +405,10 @@ class HomogeneousSequence(Type):
     def validate(self, value, adapt=True):
         super(HomogeneousSequence, self).validate(value)
         if self._min_length is not None and len(value) < self._min_length:
-            raise ValidationError("Must contain at least %d elements" %
+            raise ValidationError("must contain at least %d elements" %
                                   self._min_length, value)
         if self._max_length is not None and len(value) > self._max_length:
-            raise ValidationError("Must contain at most %d elements" %
+            raise ValidationError("must contain at most %d elements" %
                                   self._max_length, value)
         if self._item_validator is None:
             return value
@@ -552,7 +552,7 @@ class Object(Type):
         super(Object, self).validate(value)
         missing_required = self._required_keys.difference(value)
         if missing_required:
-            raise ValidationError("Missing required properties: %s" %
+            raise ValidationError("missing required properties: %s" %
                                   list(missing_required), value)
         if adapt:
             adapted = dict(value)

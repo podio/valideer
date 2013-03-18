@@ -519,15 +519,15 @@ class TestValidator(unittest.TestCase):
     def test_error_message(self):
         self._testValidation({"+foo": "number", "?bar":["integer"]}, errors=[
             (42,
-             "Invalid value 42: Must be Mapping, int was given"),
+             "Invalid value 42: must be Mapping, int was given"),
             ({},
-             "Invalid value {}: Missing required properties: ['foo']"),
+             "Invalid value {}: missing required properties: ['foo']"),
             ({"foo": "3"},
-             "Invalid value '3': Must be number, str was given (at foo)"),
+             "Invalid value '3': must be number, str was given (at foo)"),
             ({"foo": 3, "bar":None},
-             "Invalid value None: Must be Sequence, NoneType was given (at bar)"),
+             "Invalid value None: must be Sequence, NoneType was given (at bar)"),
             ({"foo": 3, "bar":[1, "2", 3]},
-             "Invalid value '2': Must be integer, str was given (at bar[1])"),
+             "Invalid value '2': must be integer, str was given (at bar[1])"),
         ])
 
     def test_error_message_json_type_names(self):
@@ -544,21 +544,21 @@ class TestValidator(unittest.TestCase):
                               "?opt": "?string",
                               }, errors=[
             (42,
-             "Invalid value 42: Must be object, integer was given"),
+             "Invalid value 42: must be object, integer was given"),
             ({},
-             "Invalid value {}: Missing required properties: ['foo']"),
+             "Invalid value {}: missing required properties: ['foo']"),
             ({"foo": "3"},
-             "Invalid value '3': Must be number, string was given (at foo)"),
+             "Invalid value '3': must be number, string was given (at foo)"),
             ({"foo": None},
-             "Invalid value None: Must be number, null was given (at foo)"),
+             "Invalid value None: must be number, null was given (at foo)"),
             ({"foo": 3, "bar":None},
-             "Invalid value None: Must be array, null was given (at bar)"),
+             "Invalid value None: must be array, null was given (at bar)"),
             ({"foo": 3, "bar":[1, "2", 3]},
-             "Invalid value '2': Must be integer, string was given (at bar[1])"),
+             "Invalid value '2': must be integer, string was given (at bar[1])"),
             ({"foo": 3, "baz":"23"},
-             "Invalid value '23': Must be number or array, string was given (at baz)"),
+             "Invalid value '23': must be number or array, string was given (at baz)"),
             ({"foo": 3, "opt":12},
-             "Invalid value 12: Must be string or null, integer was given (at opt)"),
+             "Invalid value 12: must be string or null, integer was given (at opt)"),
             ])
 
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=()):

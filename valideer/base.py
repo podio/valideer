@@ -78,7 +78,7 @@ class Validator(object):
 
         Can be overriden to provide customized ``ValidationError``s.
         """
-        raise ValidationError("Must be %s, %s was given" %
+        raise ValidationError("must be %s, %s was given" %
                               (self.humanized_name, get_type_name(value.__class__)),
                               value)
 

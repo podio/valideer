@@ -1,4 +1,4 @@
-from .base import Validator, ValidationError
+from .base import Validator, ValidationError, get_type_name
 from itertools import izip
 import collections
 import datetime
@@ -108,9 +108,9 @@ class Enum(Validator):
             pass
         self.error(value)
 
-    def error(self, value):
-        humanized_name = "{%s}" % ", ".join(map(repr, self.values))
-        raise ValidationError("Must be one of %s" % humanized_name, value)
+    @property
+    def humanized_name(self):
+        return "one of {%s}" % ", ".join(map(repr, self.values))
 
 
 class Condition(Validator):
@@ -140,8 +140,11 @@ class Condition(Validator):
         return value
 
     def error(self, value):
-        humanized_name = getattr(self._predicate, "__name__", self._predicate)
-        raise ValidationError("Must satisfy %s" % humanized_name, value)
+        raise ValidationError("Must satisfy predicate %s" % self.humanized_name, value)
+
+    @property
+    def humanized_name(self):
+        return str(getattr(self._predicate, "__name__", self._predicate))
 
 
 @Condition.register_factory
@@ -222,14 +225,9 @@ class Type(Validator):
             self.error(value)
         return value
 
-    def error(self, value):
-        raise ValidationError("Must be %s, %s was given" %
-                              (self.humanized_name, get_type_name(value.__class__)),
-                              value)
-
     @property
     def humanized_name(self):
-         return self.name or _format_types(self.accept_types)
+        return self.name or _format_types(self.accept_types)
 
 
 @Type.register_factory
@@ -363,8 +361,11 @@ class Pattern(String):
         return value
 
     def error(self, value):
-        raise ValidationError("Does not match pattern %s" % self.regexp.pattern,
-                              value)
+        raise ValidationError("Must match match %s" % self.humanized_name, value)
+
+    @property
+    def humanized_name(self):
+        return "pattern %s" % self.regexp.pattern
 
 
 @Pattern.register_factory
@@ -583,19 +584,6 @@ def _ObjectFactory(obj):
                 optional[key] = value
         return Object(optional, required)
 
-
-_TYPE_NAMES = {}
-
-def set_name_for_types(name, *types):
-    """Associate one or more types with an alternative human-friendly name."""
-    for t in types:
-        _TYPE_NAMES[t] = name
-
-def reset_type_names():
-    _TYPE_NAMES.clear()
-
-def get_type_name(type):
-    return _TYPE_NAMES.get(type) or type.__name__
 
 def _format_types(types):
     if inspect.isclass(types):

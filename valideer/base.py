@@ -78,12 +78,14 @@ class Validator(object):
 
         Can be overriden to provide customized ``ValidationError``s.
         """
-        name = self.name
-        if name:
-            msg = "Must be %s" % name
-        else:
-            msg = "Validation failed"
-        raise ValidationError(msg, value)
+        raise ValidationError("Must be %s, %s was given" %
+                              (self.humanized_name, get_type_name(value.__class__)),
+                              value)
+
+    @property
+    def humanized_name(self):
+        """Return a human-friendly string name for this validator."""
+        return self.name or self.__class__.__name__
 
     @staticmethod
     def register(name, validator):
@@ -195,3 +197,17 @@ def adapts(**schemas):
         return func(*adapted_posargs, **adapted_keywords)
 
     return adapting
+
+
+_TYPE_NAMES = {}
+
+def set_name_for_types(name, *types):
+    """Associate one or more types with an alternative human-friendly name."""
+    for t in types:
+        _TYPE_NAMES[t] = name
+
+def reset_type_names():
+    _TYPE_NAMES.clear()
+
+def get_type_name(type):
+    return _TYPE_NAMES.get(type) or type.__name__

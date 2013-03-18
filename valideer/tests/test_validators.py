@@ -21,7 +21,7 @@ class TestValidator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         V.Object.REQUIRED_PROPERTIES = True
-        V.validators.reset_type_names()
+        V.base.reset_type_names()
         cls.complex_validator = V.Validator.parse({
             "n": "number",
             "?i": V.Nullable("integer", 0),

@@ -14,10 +14,10 @@ class ValidationError(ValueError):
     _UNDEFINED = object()
 
     def __init__(self, msg, value=_UNDEFINED):
-        super(ValidationError, self).__init__()
         self.msg = msg
         self.value = value
         self.context = []
+        super(ValidationError, self).__init__(self.message)
 
     @property
     def message(self):

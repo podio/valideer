@@ -14,12 +14,13 @@ class AnyOf(Validator):
         self._validators = map(Validator.parse, schemas)
 
     def validate(self, value, adapt=True):
+        msgs = []
         for validator in self._validators:
             try:
                 return validator.validate(value, adapt)
-            except ValidationError:
-                pass
-        self.error(value)
+            except ValidationError as ex:
+                msgs.append(ex.msg)
+        raise ValidationError(" or ".join(msgs), value)
 
     @property
     def humanized_name(self):

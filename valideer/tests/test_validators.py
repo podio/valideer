@@ -556,7 +556,7 @@ class TestValidator(unittest.TestCase):
             ({"foo": 3, "bar":[1, "2", 3]},
              "Invalid value '2': must be integer, string was given (at bar[1])"),
             ({"foo": 3, "baz":"23"},
-             "Invalid value '23': must be number or array, string was given (at baz)"),
+             "Invalid value '23': must be number, string was given or must be array, string was given (at baz)"),
             ({"foo": 3, "opt":12},
              "Invalid value 12: must be string, integer was given (at opt)"),
             ])

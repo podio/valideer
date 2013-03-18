@@ -42,10 +42,7 @@ class Nullable(Validator):
     def validate(self, value, adapt=True):
         if value is None:
             return self.default
-        try:
-            return self._validator.validate(value, adapt)
-        except ValidationError:
-            self.error(value)
+        return self._validator.validate(value, adapt)
 
     @property
     def humanized_name(self):

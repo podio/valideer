@@ -558,7 +558,7 @@ class TestValidator(unittest.TestCase):
             ({"foo": 3, "baz":"23"},
              "Invalid value '23': must be number or array, string was given (at baz)"),
             ({"foo": 3, "opt":12},
-             "Invalid value 12: must be string or null, integer was given (at opt)"),
+             "Invalid value 12: must be string, integer was given (at opt)"),
             ])
 
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=()):

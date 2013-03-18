@@ -23,7 +23,9 @@ class ValidationError(ValueError):
     def message(self):
         msg = self.msg
         if self.value is not self._UNDEFINED:
-            msg = "Invalid value %r: %s" % (self.value, msg)
+            msg = "Invalid value %r (%s): %s" % (self.value,
+                                                 get_type_name(self.value.__class__),
+                                                 msg)
         return msg
 
     def __str__(self):
@@ -85,9 +87,7 @@ class Validator(object):
 
         Can be overriden to provide customized ``ValidationError``s.
         """
-        raise ValidationError("must be %s, %s was given" %
-                              (self.humanized_name, get_type_name(value.__class__)),
-                              value)
+        raise ValidationError("must be %s" % self.humanized_name, value)
 
     @property
     def humanized_name(self):

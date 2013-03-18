@@ -14,17 +14,24 @@ class ValidationError(ValueError):
     _UNDEFINED = object()
 
     def __init__(self, msg, value=_UNDEFINED):
-        if value is not self._UNDEFINED:
-            msg = "Invalid value %r: %s" % (value, msg)
-        super(ValidationError, self).__init__(msg)
+        super(ValidationError, self).__init__()
+        self.msg = msg
+        self.value = value
         self.context = []
 
+    @property
+    def message(self):
+        msg = self.msg
+        if self.value is not self._UNDEFINED:
+            msg = "Invalid value %r: %s" % (self.value, msg)
+        return msg
+
     def __str__(self):
-        s = super(ValidationError, self).__str__()
+        msg = self.message
         if self.context:
-            s += " (at %s)" % "".join("[%r]" % context if i > 0 else str(context)
-                                      for i, context in enumerate(reversed(self.context)))
-        return s
+            msg += " (at %s)" % "".join("[%r]" % context if i > 0 else str(context)
+                                        for i, context in enumerate(reversed(self.context)))
+        return msg
 
     def add_context(self, context):
         self.context.append(context)

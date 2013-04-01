@@ -17,19 +17,17 @@ class ValidationError(ValueError):
         self.msg = msg
         self.value = value
         self.context = []
-        super(ValidationError, self).__init__(self.message)
-
-    @property
-    def message(self):
-        msg = self.msg
-        if self.value is not self._UNDEFINED:
-            msg = "Invalid value %r (%s): %s" % (self.value,
-                                                 get_type_name(self.value.__class__),
-                                                 msg)
-        return msg
+        super(ValidationError, self).__init__(self.to_string())
 
     def __str__(self):
-        msg = self.message
+        return self.to_string()
+
+    def to_string(self, repr_value=repr):
+        msg = self.msg
+        if self.value is not self._UNDEFINED:
+            msg = "Invalid value %s (%s): %s" % (repr_value(self.value),
+                                                 get_type_name(self.value.__class__),
+                                                 msg)
         if self.context:
             msg += " (at %s)" % "".join("[%r]" % context if i > 0 else str(context)
                                         for i, context in enumerate(reversed(self.context)))

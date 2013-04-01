@@ -2,6 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 import collections
+import json
 import re
 import unittest
 import valideer as V
@@ -530,6 +531,26 @@ class TestValidator(unittest.TestCase):
              "Invalid value '2' (str): must be integer (at bar[1])"),
         ])
 
+    def test_error_message_custom_repr_value(self):
+        self._testValidation({"+foo": "number", "?bar":["integer"]},
+                             error_value_repr=json.dumps,
+                             errors=[
+            (42,
+             "Invalid value 42 (int): must be Mapping"),
+            ({},
+             "Invalid value {} (dict): missing required properties: ['foo']"),
+            ({"foo": "3"},
+             'Invalid value "3" (str): must be number (at foo)'),
+            ({"foo": [3]},
+             'Invalid value [3] (list): must be number (at foo)'),
+            ({"foo": 3, "bar":None},
+             "Invalid value null (NoneType): must be Sequence (at bar)"),
+            ({"foo": 3, "bar": False},
+             "Invalid value false (bool): must be Sequence (at bar)"),
+            ({"foo": 3, "bar":[1, {u'a': 3}, 3]},
+             'Invalid value {"a": 3} (dict): must be integer (at bar[1])'),
+        ])
+
     def test_error_message_json_type_names(self):
         V.set_name_for_types("null", type(None))
         V.set_name_for_types("integer", int, long)
@@ -561,7 +582,8 @@ class TestValidator(unittest.TestCase):
              "Invalid value 12 (integer): must be string (at opt)"),
             ])
 
-    def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=()):
+    def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
+                        error_value_repr=repr):
         validator = V.Validator.parse(obj)
         for value in invalid:
             self.assertFalse(validator.is_valid(value))
@@ -578,7 +600,8 @@ class TestValidator(unittest.TestCase):
             try:
                 validator.validate(value)
             except V.ValidationError as ex:
-                self.assertEqual(str(ex), error, "Actual error: %r" % str(ex))
+                error_repr = ex.to_string(error_value_repr)
+                self.assertEqual(error_repr, error, "Actual error: %r" % error_repr)
 
 
 class OptionalPropertiesTestValidator(TestValidator):

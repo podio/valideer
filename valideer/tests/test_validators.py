@@ -19,11 +19,10 @@ class Gender(V.Enum):
 
 class TestValidator(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         V.Object.REQUIRED_PROPERTIES = True
         V.base.reset_type_names()
-        cls.complex_validator = V.Validator.parse({
+        self.complex_validator = V.Validator.parse({
             "n": "number",
             "?i": V.Nullable("integer", 0),
             "?b": bool,
@@ -606,11 +605,10 @@ class TestValidator(unittest.TestCase):
 
 class OptionalPropertiesTestValidator(TestValidator):
 
-    @classmethod
-    def setUpClass(cls):
-        super(OptionalPropertiesTestValidator, cls).setUpClass()
+    def setUp(self):
+        super(OptionalPropertiesTestValidator, self).setUp()
         V.Object.REQUIRED_PROPERTIES = False
-        cls.complex_validator = V.Validator.parse({
+        self.complex_validator = V.Validator.parse({
             "+n": "+number",
             "i": V.Nullable("integer", 0),
             "b": bool,

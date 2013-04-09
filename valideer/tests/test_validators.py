@@ -516,6 +516,17 @@ class TestValidator(unittest.TestCase):
             if adapted.get("o") is not None:
                 self.assertTrue(isinstance(adapted["o"]["i2"], (int, long)))
 
+    def test_humanized_names(self):
+        class DummyValidator(V.Validator):
+            name = "dummy"
+            def validate(self, value, adapt=True):
+                return value
+
+        self.assertEqual(DummyValidator().humanized_name, "dummy")
+        self.assertEqual(V.Nullable(DummyValidator()).humanized_name, "dummy or null")
+        self.assertEqual(V.AnyOf("boolean", DummyValidator()).humanized_name,
+                         "boolean or dummy")
+
     def test_error_message(self):
         self._testValidation({"+foo": "number", "?bar":["integer"]}, errors=[
             (42,

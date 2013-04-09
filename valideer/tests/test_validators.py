@@ -1,6 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
+import collections
+import json
 import re
 import unittest
 import valideer as V
@@ -20,6 +22,7 @@ class TestValidator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         V.Object.REQUIRED_PROPERTIES = True
+        V.base.reset_type_names()
         cls.complex_validator = V.Validator.parse({
             "n": "number",
             "?i": V.Nullable("integer", 0),
@@ -517,18 +520,70 @@ class TestValidator(unittest.TestCase):
     def test_error_message(self):
         self._testValidation({"+foo": "number", "?bar":["integer"]}, errors=[
             (42,
-             "Invalid value 42: Must be Mapping"),
+             "Invalid value 42 (int): must be Mapping"),
             ({},
-             "Invalid value {}: Missing required properties: ['foo']"),
+             "Invalid value {} (dict): missing required properties: ['foo']"),
             ({"foo": "3"},
-             "Invalid value '3': Must be Number (at foo)"),
+             "Invalid value '3' (str): must be number (at foo)"),
             ({"foo": 3, "bar":None},
-             "Invalid value None: Must be Sequence (at bar)"),
+             "Invalid value None (NoneType): must be Sequence (at bar)"),
             ({"foo": 3, "bar":[1, "2", 3]},
-             "Invalid value '2': Must be Integral (at bar[1])"),
+             "Invalid value '2' (str): must be integer (at bar[1])"),
         ])
 
-    def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=()):
+    def test_error_message_custom_repr_value(self):
+        self._testValidation({"+foo": "number", "?bar":["integer"]},
+                             error_value_repr=json.dumps,
+                             errors=[
+            (42,
+             "Invalid value 42 (int): must be Mapping"),
+            ({},
+             "Invalid value {} (dict): missing required properties: ['foo']"),
+            ({"foo": "3"},
+             'Invalid value "3" (str): must be number (at foo)'),
+            ({"foo": [3]},
+             'Invalid value [3] (list): must be number (at foo)'),
+            ({"foo": 3, "bar":None},
+             "Invalid value null (NoneType): must be Sequence (at bar)"),
+            ({"foo": 3, "bar": False},
+             "Invalid value false (bool): must be Sequence (at bar)"),
+            ({"foo": 3, "bar":[1, {u'a': 3}, 3]},
+             'Invalid value {"a": 3} (dict): must be integer (at bar[1])'),
+        ])
+
+    def test_error_message_json_type_names(self):
+        V.set_name_for_types("null", type(None))
+        V.set_name_for_types("integer", int, long)
+        V.set_name_for_types("number", float)
+        V.set_name_for_types("string", str, unicode)
+        V.set_name_for_types("array", list, collections.Sequence)
+        V.set_name_for_types("object", dict, collections.Mapping)
+
+        self._testValidation({"+foo": "number",
+                              "?bar":["integer"],
+                              "?baz": V.AnyOf("number", ["number"]),
+                              "?opt": "?string",
+                              }, errors=[
+            (42,
+             "Invalid value 42 (integer): must be object"),
+            ({},
+             "Invalid value {} (object): missing required properties: ['foo']"),
+            ({"foo": "3"},
+             "Invalid value '3' (string): must be number (at foo)"),
+            ({"foo": None},
+             "Invalid value None (null): must be number (at foo)"),
+            ({"foo": 3, "bar":None},
+             "Invalid value None (null): must be array (at bar)"),
+            ({"foo": 3, "bar":[1, "2", 3]},
+             "Invalid value '2' (string): must be integer (at bar[1])"),
+            ({"foo": 3, "baz":"23"},
+             "Invalid value '23' (string): must be number or must be array (at baz)"),
+            ({"foo": 3, "opt":12},
+             "Invalid value 12 (integer): must be string (at opt)"),
+            ])
+
+    def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
+                        error_value_repr=repr):
         validator = V.Validator.parse(obj)
         for value in invalid:
             self.assertFalse(validator.is_valid(value))
@@ -545,7 +600,8 @@ class TestValidator(unittest.TestCase):
             try:
                 validator.validate(value)
             except V.ValidationError as ex:
-                self.assertEqual(str(ex), error, "Actual error: %r" % str(ex))
+                error_repr = ex.to_string(error_value_repr)
+                self.assertEqual(error_repr, error, "Actual error: %r" % error_repr)
 
 
 class OptionalPropertiesTestValidator(TestValidator):

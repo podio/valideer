@@ -14,17 +14,24 @@ class ValidationError(ValueError):
     _UNDEFINED = object()
 
     def __init__(self, msg, value=_UNDEFINED):
-        if value is not self._UNDEFINED:
-            msg = "Invalid value %r: %s" % (value, msg)
-        super(ValidationError, self).__init__(msg)
+        self.msg = msg
+        self.value = value
         self.context = []
+        super(ValidationError, self).__init__(self.to_string())
 
     def __str__(self):
-        s = super(ValidationError, self).__str__()
+        return self.to_string()
+
+    def to_string(self, repr_value=repr):
+        msg = self.msg
+        if self.value is not self._UNDEFINED:
+            msg = "Invalid value %s (%s): %s" % (repr_value(self.value),
+                                                 get_type_name(self.value.__class__),
+                                                 msg)
         if self.context:
-            s += " (at %s)" % "".join("[%r]" % context if i > 0 else str(context)
-                                      for i, context in enumerate(reversed(self.context)))
-        return s
+            msg += " (at %s)" % "".join("[%r]" % context if i > 0 else str(context)
+                                        for i, context in enumerate(reversed(self.context)))
+        return msg
 
     def add_context(self, context):
         self.context.append(context)
@@ -72,6 +79,18 @@ class Validator(object):
             return True
         except ValidationError:
             return False
+
+    def error(self, value):
+        """Helper method that can be called when ``value`` is deemed invalid.
+
+        Can be overriden to provide customized ``ValidationError``s.
+        """
+        raise ValidationError("must be %s" % self.humanized_name, value)
+
+    @property
+    def humanized_name(self):
+        """Return a human-friendly string name for this validator."""
+        return self.name or self.__class__.__name__
 
     @staticmethod
     def register(name, validator):
@@ -183,3 +202,17 @@ def adapts(**schemas):
         return func(*adapted_posargs, **adapted_keywords)
 
     return adapting
+
+
+_TYPE_NAMES = {}
+
+def set_name_for_types(name, *types):
+    """Associate one or more types with an alternative human-friendly name."""
+    for t in types:
+        _TYPE_NAMES[t] = name
+
+def reset_type_names():
+    _TYPE_NAMES.clear()
+
+def get_type_name(type):
+    return _TYPE_NAMES.get(type) or type.__name__

@@ -1,5 +1,6 @@
 0.2
 ===
+- Better, customizable ValidationError messages.
 - Added Condition validator.
 
 0.1

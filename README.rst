@@ -14,8 +14,8 @@ Lightweight data validation and adaptation library for Python.
 - Batteries included: validators for most common types are included out of the box.
 - Extensible: New custom validators and adaptors can be easily defined and
   registered.
-- Informative error messages: Validation errors include the reason and exact
-  location of the error.
+- Informative, customizable error messages: Validation errors include the reason
+  and location of the error.
 - Agnostic: not tied to any particular framework or application domain (e.g.
   Web form validation).
 - Well tested: Extensive test suite with 100% coverage.
@@ -45,12 +45,12 @@ report::
 	Name                  Stmts   Miss  Cover   Missing
 	---------------------------------------------------
 	valideer                  2      0   100%
-	valideer.base            85      0   100%
-	valideer.validators     299      0   100%
+	valideer.base           101      0   100%
+	valideer.validators     335      0   100%
 	---------------------------------------------------
-	TOTAL                   386      0   100%
+	TOTAL                   438      0   100%
 	----------------------------------------------------------------------
-	Ran 80 tests in 0.113s
+	Ran 86 tests in 0.104s
 
 
 Basic Use
@@ -101,15 +101,15 @@ This can be specified by passing a similar but less verbose structure to the
 
 	>>> from valideer import Validator, Range
 	>>> product_schema = {
-	...     "+id": "number",
-	...     "+name": "string",
-	...     "+price": Range("number", min_value=0),
-	...     "tags": ["string"],
-	...     "stock": {
-	...         "warehouse": "number",
-	...         "retail": "number",
-	...     }
-	... }
+	>>>     "+id": "number",
+	>>>     "+name": "string",
+	>>>     "+price": Range("number", min_value=0),
+	>>>     "tags": ["string"],
+	>>>     "stock": {
+	>>>         "warehouse": "number",
+	>>>         "retail": "number",
+	>>>     }
+	>>> }
 	>>> validator = Validator.parse(product_schema)
 
 ``Validator.parse`` returns a ``Validator`` instance, which can be then used to
@@ -121,21 +121,21 @@ Validation
 To check if an input is valid call the ``is_valid`` method::
 
 	>>> product1 = {
-	...     "id": 1,
-	...     "name": "Foo",
-	...     "price": 123,
-	...     "tags": ["Bar", "Eek"],
-	...     "stock": {
-	...         "warehouse": 300,
-	...         "retail": 20
-	...     }
-	... }
+	>>>     "id": 1,
+	>>>     "name": "Foo",
+	>>>     "price": 123,
+	>>>     "tags": ["Bar", "Eek"],
+	>>>     "stock": {
+	>>>         "warehouse": 300,
+	>>>         "retail": 20
+	>>>     }
+	>>> }
 	>>> validator.is_valid(product1)
 	True
 	>>> product2 = {
-	...     "id": 1,
-	...     "price": 123,
-	... }
+	>>>     "id": 1,
+	>>>     "price": 123,
+	>>> }
 	>>> validator.is_valid(product2)
 	False
 
@@ -143,8 +143,7 @@ Another option is the ``validate`` method. If the input is invalid, it raises
 ``ValidationError``::
 
 	>>> validator.validate(product2)
-	...
-	valideer.base.ValidationError: Invalid value {'price': 123, 'id': 1}: Missing required properties: ['name']
+	ValidationError: Invalid value {'price': 123, 'id': 1} (dict): missing required properties: ['name']
 
 For the common use case of validating inputs when entering a function, the
 ``@accepts`` decorator provides some nice syntax sugar (shamelessly stolen from
@@ -152,18 +151,15 @@ typecheck_)::
 
 	>>> from valideer import accepts
 	>>> @accepts(product=product_schema, quantity="integer")
-	... def get_total_price(product, quantity=1):
-	...     return product["price"] * quantity
-	...
+	>>> def get_total_price(product, quantity=1):
+	>>>     return product["price"] * quantity
+	>>>
 	>>> get_total_price(product1, 2)
 	246
 	>>> get_total_price(product1, 0.5)
-	...
-	valideer.base.ValidationError: Invalid value 0.5: Must be int or long (at quantity)
+	ValidationError: Invalid value 0.5 (float): must be integer (at quantity)
 	>>> get_total_price(product2)
-	Traceback (most recent call last):
-	...
-	valideer.base.ValidationError: Invalid value {'price': 123, 'id': 1}: Missing required properties: ['name'] (at product)
+	ValidationError: Invalid value {'price': 123, 'id': 1} (dict): missing required properties: ['name'] (at product)
 
 Adaptation
 ##########
@@ -181,28 +177,23 @@ An existing class can be easily used as an adaptor by being wrapped in ``AdaptTo
 	>>> adapt_prices({"prices": ["2", "3.1", 1]})
 	{'prices': [2.0, 3.1, 1.0]}
 	>>> adapt_prices({"prices": ["2", "3f"]})
-	...
-	valideer.base.ValidationError: Invalid value '3f': invalid literal for float(): 3f (at prices[1])
+	ValidationError: Invalid value '3f' (str): invalid literal for float(): 3f (at prices[1])
 	>>> adapt_prices({"prices": ["2", 1, None]})
-	...
-	valideer.base.ValidationError: Invalid value None: float() argument must be a string or a number (at prices[2])
+	ValidationError: Invalid value None (NoneType): float() argument must be a string or a number (at prices[2])
 
 Similar to ``@accepts``, the ``@adapts`` decorator provides a convenient syntax
 for adapting function inputs::
 
 	>>> from valideer import adapts
 	>>> @adapts(json={"prices": [AdaptTo(float)]})
-	... def get_sum_price(json):
-	...     return sum(json["prices"])
-	...
+	>>> def get_sum_price(json):
+	>>>     return sum(json["prices"])
 	>>> get_sum_price({"prices": ["2", "3.1", 1]})
 	6.1
 	>>> get_sum_price({"prices": ["2", "3f"]})
-	...
-	valideer.base.ValidationError: Invalid value '3f': invalid literal for float(): 3f (at json['prices'][1])
+	ValidationError: Invalid value '3f' (str): invalid literal for float(): 3f (at json['prices'][1])
 	>>> get_sum_price({"prices": ["2", 1, None]})
-	...
-	valideer.base.ValidationError: Invalid value None: float() argument must be a string or a number (at json['prices'][2])
+	ValidationError: Invalid value None (NoneType): float() argument must be a string or a number (at json['prices'][2])
 
 Explicit Instantiation
 ######################
@@ -214,21 +205,21 @@ taste, a validator can be also created explicitly from regular Python classes::
 
 	>>> from valideer import Object, HomogeneousSequence, Number, String, Range
 	>>> validator = Object(
-	...     required={
-	...         "id": Number(),
-	...         "name": String(),
-	...         "price": Range(Number(), min_value=0),
-	...     },
-	...     optional={
-	...         "tags": HomogeneousSequence(String()),
-	...         "stock": Object(
-	...             optional={
-	...                 "warehouse": Number(),
-	...                 "retail": Number(),
-	...             }
-	...         )
-	...     }
-	... )
+	>>>     required={
+	>>>         "id": Number(),
+	>>>         "name": String(),
+	>>>         "price": Range(Number(), min_value=0),
+	>>>     },
+	>>>     optional={
+	>>>         "tags": HomogeneousSequence(String()),
+	>>>         "stock": Object(
+	>>>             optional={
+	>>>                 "warehouse": Number(),
+	>>>                 "retail": Number(),
+	>>>             }
+	>>>         )
+	>>>     }
+	>>> )
 
 
 Built-in Validators
@@ -371,7 +362,9 @@ defined validators. All you need to do is extend ``Validator`` (or a more
 convenient subclass) and implement the ``validate`` method. Here is an example
 of a custom validator that could be used to enforce minimal password strength::
 
-	class Password(valideer.String):
+	from valideer import String, ValidationError
+
+	class Password(String):
 
 	    name = "password"
 
@@ -414,13 +407,11 @@ Setting a ``name`` class attribute is the simplest way to create a validator
 shortcut. A shortcut can also be created explicitly with the ``Validator.register``
 static method::
 
-	>>> Validator.register("strong_password", PasswordValidator(min_length=8, min_digits=1))
-	>>>
+	>>> Validator.register("strong_password", Password(min_length=8, min_digits=1))
 	>>> is_fair_password = Validator.parse("password").is_valid
 	>>> is_strong_password = Validator.parse("strong_password").is_valid
 	>>> for pwd in "passwd", "Passwd", "PASSWd", "Pas5word":
-	...     print (pwd, is_fair_password(pwd), is_strong_password(pwd))
-	...
+	>>>     print (pwd, is_fair_password(pwd), is_strong_password(pwd))
 	('passwd', False, False)
 	('Passwd', True, False)
 	('PASSWd', True, False)
@@ -444,17 +435,15 @@ If we'd like to parse ``'!foo'`` strings as a shortcut for ``Not('foo')``, we
 can do so with the ``Validator.register_factory`` decorator::
 
 	>>> @Validator.register_factory
-	... def NotFactory(obj):
-	...     if isinstance(obj, basestring) and obj.startswith("!"):
-	...         return Not(obj[1:])
-	...
+	>>> def NotFactory(obj):
+	>>>     if isinstance(obj, basestring) and obj.startswith("!"):
+	>>>         return Not(obj[1:])
+	>>>
 	>>> validate = Validator.parse({"i": "integer", "s": "!number"}).validate
 	>>> validate({"i": 4, "s": ""})
 	{'i': 4, 's': ''}
 	>>> validate({"i": 4, "s": 1.2})
-	Traceback (most recent call last):
-	...
-	valideer.base.ValidationError: Invalid value 1.2: Should not be a Number (at s)
+	ValidationError: Invalid value 1.2 (float): Should not be a Number (at s)
 
 
 .. _valideer: https://github.com/podio/valideer

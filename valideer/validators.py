@@ -1,4 +1,4 @@
-from .base import Validator, ValidationError
+from .base import Validator, ValidationError, get_type_name
 from itertools import izip
 import collections
 import datetime
@@ -14,13 +14,17 @@ class AnyOf(Validator):
         self._validators = map(Validator.parse, schemas)
 
     def validate(self, value, adapt=True):
+        msgs = []
         for validator in self._validators:
             try:
                 return validator.validate(value, adapt)
-            except ValidationError:
-                pass
-        raise ValidationError("Is not validated by %s" %
-            _format_types([v.__class__ for v in self._validators]), value)
+            except ValidationError as ex:
+                msgs.append(ex.msg)
+        raise ValidationError(" or ".join(msgs), value)
+
+    @property
+    def humanized_name(self):
+        return " or ".join(v.humanized_name for v in self._validators)
 
 
 class Nullable(Validator):
@@ -40,6 +44,10 @@ class Nullable(Validator):
         if value is None:
             return self.default
         return self._validator.validate(value, adapt)
+
+    @property
+    def humanized_name(self):
+        return "%s or null" % self._validator.humanized_name
 
 
 @Nullable.register_factory
@@ -63,10 +71,15 @@ class NonNullable(Validator):
 
     def validate(self, value, adapt=True):
         if value is None:
-            raise ValidationError("Value must not be null")
+            self.error(value)
         if self._validator is not None:
             return self._validator.validate(value, adapt)
         return value
+
+    @property
+    def humanized_name(self):
+        return self._validator.humanized_name if self._validator else "non null"
+
 
 @NonNullable.register_factory
 def _NonNullableFactory(obj):
@@ -82,11 +95,11 @@ class Enum(Validator):
         - values: The collection of valid values.
     """
 
-    values = None
+    values = ()
 
     def __init__(self, values=None):
         super(Enum, self).__init__()
-        if not values:
+        if values is None:
             values = self.values
         try:
             self.values = set(values)
@@ -99,7 +112,11 @@ class Enum(Validator):
                 return value
         except TypeError: # unhashable
             pass
-        raise ValidationError("Must be one of %r" % list(self.values), value)
+        self.error(value)
+
+    @property
+    def humanized_name(self):
+        return "one of {%s}" % ", ".join(map(repr, self.values))
 
 
 class Condition(Validator):
@@ -123,12 +140,18 @@ class Condition(Validator):
         else:
             is_valid = self._predicate(value)
 
-        if is_valid:
-            return value
+        if not is_valid:
+            self.error(value)
 
-        raise ValidationError("Must satisfy %s" %
-                              getattr(self._predicate, "__name__", self._predicate),
-                              value)
+        return value
+
+    def error(self, value):
+        raise ValidationError("must satisfy predicate %s" % self.humanized_name, value)
+
+    @property
+    def humanized_name(self):
+        return str(getattr(self._predicate, "__name__", self._predicate))
+
 
 @Condition.register_factory
 def _ConditionFactory(obj):
@@ -204,13 +227,14 @@ class Type(Validator):
             self.reject_types = reject_types
 
     def validate(self, value, adapt=True):
-        if not isinstance(value, self.accept_types):
-            raise ValidationError("Must be %s" % _format_types(self.accept_types),
-                                  value)
-        if isinstance(value, self.reject_types):
-            raise ValidationError("Must not be %s" % _format_types(self.reject_types),
-                                  value)
+        if not isinstance(value, self.accept_types) or isinstance(value, self.reject_types):
+            self.error(value)
         return value
+
+    @property
+    def humanized_name(self):
+        return self.name or _format_types(self.accept_types)
+
 
 @Type.register_factory
 def _TypeFactory(obj):
@@ -254,10 +278,10 @@ class Range(Validator):
         value = self._validator.validate(value, adapt=adapt)
 
         if self._min_value is not None and value < self._min_value:
-            raise ValidationError("Must not be less than %d" %
+            raise ValidationError("must not be less than %d" %
                                   self._min_value, value)
         if self._max_value is not None and value > self._max_value:
-            raise ValidationError("Must not be larger than %d" %
+            raise ValidationError("must not be larger than %d" %
                                   self._max_value, value)
 
         return value
@@ -313,10 +337,10 @@ class String(Type):
     def validate(self, value, adapt=True):
         super(String, self).validate(value)
         if self._min_length is not None and len(value) < self._min_length:
-            raise ValidationError("Must be at least %d characters long" %
+            raise ValidationError("must be at least %d characters long" %
                                   self._min_length, value)
         if self._max_length is not None and len(value) > self._max_length:
-            raise ValidationError("Must be at most %d characters long" %
+            raise ValidationError("must be at most %d characters long" %
                                   self._max_length, value)
         return value
 
@@ -339,9 +363,16 @@ class Pattern(String):
     def validate(self, value, adapt=True):
         super(Pattern, self).validate(value)
         if not self.regexp.match(value):
-            raise ValidationError("Does not match pattern %s" % self.regexp.pattern,
-                                  value)
+            self.error(value)
         return value
+
+    def error(self, value):
+        raise ValidationError("must match %s" % self.humanized_name, value)
+
+    @property
+    def humanized_name(self):
+        return "pattern %s" % self.regexp.pattern
+
 
 @Pattern.register_factory
 def _PatternFactory(obj):
@@ -372,10 +403,10 @@ class HomogeneousSequence(Type):
     def validate(self, value, adapt=True):
         super(HomogeneousSequence, self).validate(value)
         if self._min_length is not None and len(value) < self._min_length:
-            raise ValidationError("Must contain at least %d elements" %
+            raise ValidationError("must contain at least %d elements" %
                                   self._min_length, value)
         if self._max_length is not None and len(value) > self._max_length:
-            raise ValidationError("Must contain at most %d elements" %
+            raise ValidationError("must contain at most %d elements" %
                                   self._max_length, value)
         if self._item_validator is None:
             return value
@@ -519,7 +550,7 @@ class Object(Type):
         super(Object, self).validate(value)
         missing_required = self._required_keys.difference(value)
         if missing_required:
-            raise ValidationError("Missing required properties: %s" %
+            raise ValidationError("missing required properties: %s" %
                                   list(missing_required), value)
         if adapt:
             adapted = dict(value)
@@ -563,7 +594,7 @@ def _ObjectFactory(obj):
 def _format_types(types):
     if inspect.isclass(types):
         types = (types,)
-    names = [t.__name__ for t in types]
+    names = map(get_type_name, types)
     s = names[-1]
     if len(names) > 1:
         s = ", ".join(names[:-1]) + " or " + s

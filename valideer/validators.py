@@ -1,4 +1,4 @@
-from .base import Validator, ValidationError, get_type_name
+from .base import Validator, ValidationError, parse, get_type_name
 from itertools import izip
 import collections
 import datetime
@@ -18,7 +18,7 @@ class AnyOf(Validator):
     """A composite validator that accepts values accepted by any of its components."""
 
     def __init__(self, *schemas):
-        self._validators = map(Validator.parse, schemas)
+        self._validators = map(parse, schemas)
 
     def validate(self, value, adapt=True):
         msgs = []
@@ -41,7 +41,7 @@ class Nullable(Validator):
         if isinstance(schema, Validator):
             self._validator = schema
         else:
-            validator = Validator.parse(schema)
+            validator = parse(schema)
             if isinstance(validator, (Nullable, NonNullable)):
                 validator = validator._validator
             self._validator = validator
@@ -69,7 +69,7 @@ class NonNullable(Validator):
 
     def __init__(self, schema=None):
         if schema is not None and not isinstance(schema, Validator):
-            validator = Validator.parse(schema)
+            validator = parse(schema)
             if isinstance(validator, (Nullable, NonNullable)):
                 validator = validator._validator
             self._validator = validator
@@ -277,7 +277,7 @@ class Range(Validator):
             invalid.
         """
         super(Range, self).__init__()
-        self._validator = Validator.parse(schema)
+        self._validator = parse(schema)
         self._min_value = min_value
         self._max_value = max_value
 
@@ -401,7 +401,7 @@ class HomogeneousSequence(Type):
         """
         super(HomogeneousSequence, self).__init__()
         if item_schema is not None:
-            self._item_validator = Validator.parse(item_schema)
+            self._item_validator = parse(item_schema)
         else:
             self._item_validator = None
         self._min_length = min_length
@@ -451,7 +451,7 @@ class HeterogeneousSequence(Type):
         :param item_schemas: The schema of each element of the the tuple.
         """
         super(HeterogeneousSequence, self).__init__()
-        self._item_validators = map(Validator.parse, item_schemas)
+        self._item_validators = map(parse, item_schemas)
 
     def validate(self, value, adapt=True):
         super(HeterogeneousSequence, self).validate(value)
@@ -492,11 +492,11 @@ class Mapping(Type):
         """
         super(Mapping, self).__init__()
         if key_schema is not None:
-            self._key_validator = Validator.parse(key_schema)
+            self._key_validator = parse(key_schema)
         else:
             self._key_validator = None
         if value_schema is not None:
-            self._value_validator = Validator.parse(value_schema)
+            self._value_validator = parse(value_schema)
         else:
             self._value_validator = None
 
@@ -549,7 +549,7 @@ class Object(Type):
         super(Object, self).__init__()
         self._required_keys = set(required)
         self._named_validators = [
-            (name, Validator.parse(schema))
+            (name, parse(schema))
             for name, schema in dict(optional, **required).iteritems()
         ]
 

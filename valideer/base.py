@@ -3,6 +3,7 @@ from decorator import decorator
 
 __all__ = [
     "ValidationError", "SchemaError", "Validator", "accepts", "adapts",
+    "parse", "register", "register_factory",
     "set_name_for_types", "reset_type_names",
 ]
 
@@ -41,6 +42,62 @@ class ValidationError(ValueError):
     def add_context(self, context):
         self.context.append(context)
         return self
+
+
+def parse(obj):
+    """Try to parse the given ``obj`` as a validator instance.
+
+    :param obj: If it is a ...
+        - ``Validator`` instance, return it.
+        - ``Validator`` subclass, instantiate it without arguments and return it.
+        - name of a known ``Validator`` subclass, instantiate the subclass
+          without arguments and return it.
+        - otherwise find the first registered ``Validator`` factory that can
+          create it. The search order is the reverse of the factory registration
+          order. The caller is responsible for ensuring there are no ambiguous
+          values that can be parsed by more than one factory.
+    :raises SchemaError: If no appropriate validator could be found.
+    """
+    validator = None
+
+    if isinstance(obj, Validator):
+        validator = obj
+    elif inspect.isclass(obj) and issubclass(obj, Validator):
+        validator = obj()
+    else:
+        try:
+            validator = _NAMED_VALIDATORS[obj]
+        except (KeyError, TypeError):
+            for factory in _VALIDATOR_FACTORIES:
+                validator = factory(obj)
+                if validator is not None:
+                    break
+        else:
+            if inspect.isclass(validator) and issubclass(validator, Validator):
+                _NAMED_VALIDATORS[obj] = validator = validator()
+
+    if not isinstance(validator, Validator):
+        raise SchemaError("%r cannot be parsed as a Validator" % obj)
+
+    return validator
+
+
+def register(name, validator):
+    """Register a validator instance under the given ``name``."""
+    if not isinstance(validator, Validator):
+        raise TypeError("Validator instance expected, %s given" % validator.__class__)
+    _NAMED_VALIDATORS[name] = validator
+
+
+def register_factory(func):
+    """Decorator for registering a validator factory.
+
+    The decorated factory must be a callable that takes a single parameter
+    that can be any arbitrary object and returns a Validator instance if it
+    can parse the input object successfully, or None otherwise.
+    """
+    _VALIDATOR_FACTORIES.insert(0, func)
+    return func
 
 
 class Validator(object):
@@ -97,61 +154,11 @@ class Validator(object):
         """Return a human-friendly string name for this validator."""
         return self.name or self.__class__.__name__
 
-    @staticmethod
-    def register(name, validator):
-        """Register a validator instance under the given ``name``."""
-        if not isinstance(validator, Validator):
-            raise TypeError("Validator instance expected, %s given" % validator.__class__)
-        _NAMED_VALIDATORS[name] = validator
+    # for backwards compatibility
 
-    @staticmethod
-    def register_factory(func):
-        """Decorator for registering a validator factory.
-
-        The decorated factory must be a callable that takes a single parameter
-        that can be any arbitrary object and returns a Validator instance if it
-        can parse the input object successfully, or None otherwise.
-        """
-        _VALIDATOR_FACTORIES.insert(0, func)
-        return func
-
-    @staticmethod
-    def parse(obj):
-        """Try to parse the given ``obj`` as a validator instance.
-
-        :param obj: If it is a ...
-            - ``Validator`` instance, return it.
-            - ``Validator`` subclass, instantiate it without arguments and return it.
-            - name of a known ``Validator`` subclass, instantiate the subclass
-              without arguments and return it.
-            - otherwise find the first registered ``Validator`` factory that can
-              create it. The search order is the reverse of the factory registration
-              order. The caller is responsible for ensuring there are no ambiguous
-              values that can be parsed by more than one factory.
-        :raises SchemaError: If no appropriate validator could be found.
-        """
-        validator = None
-
-        if isinstance(obj, Validator):
-            validator = obj
-        elif inspect.isclass(obj) and issubclass(obj, Validator):
-            validator = obj()
-        else:
-            try:
-                validator = _NAMED_VALIDATORS[obj]
-            except (KeyError, TypeError):
-                for factory in _VALIDATOR_FACTORIES:
-                    validator = factory(obj)
-                    if validator is not None:
-                        break
-            else:
-                if inspect.isclass(validator) and issubclass(validator, Validator):
-                    _NAMED_VALIDATORS[obj] = validator = validator()
-
-        if not isinstance(validator, Validator):
-            raise SchemaError("%r cannot be parsed as a Validator" % obj)
-
-        return validator
+    parse = staticmethod(parse)
+    register = staticmethod(register)
+    register_factory = staticmethod(register_factory)
 
 
 def accepts(**schemas):
@@ -165,7 +172,7 @@ def accepts(**schemas):
 
     :param schemas: The schema for validating a given parameter.
     """
-    validate = Validator.parse(schemas).validate
+    validate = parse(schemas).validate
     @decorator
     def validating(func, *args, **kwargs):
         validate(inspect.getcallargs(func, *args, **kwargs), adapt=False)
@@ -184,7 +191,7 @@ def adapts(**schemas):
 
     :param schemas: The schema for adapting a given parameter.
     """
-    validate = Validator.parse(schemas).validate
+    validate = parse(schemas).validate
 
     @decorator
     def adapting(func, *args, **kwargs):

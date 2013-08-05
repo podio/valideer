@@ -97,23 +97,23 @@ We'll demonstrate ``valideer`` using the following `JSON schema example`_::
 	}
 
 This can be specified by passing a similar but less verbose structure to the
-``Validator.parse`` static method::
+``valideer.parse`` functions::
 
-	>>> from valideer import Validator, Range
+	>>> import valideer as V
 	>>> product_schema = {
 	>>>     "+id": "number",
 	>>>     "+name": "string",
-	>>>     "+price": Range("number", min_value=0),
+	>>>     "+price": V.Range("number", min_value=0),
 	>>>     "tags": ["string"],
 	>>>     "stock": {
 	>>>         "warehouse": "number",
 	>>>         "retail": "number",
 	>>>     }
 	>>> }
-	>>> validator = Validator.parse(product_schema)
+	>>> validator = V.parse(product_schema)
 
-``Validator.parse`` returns a ``Validator`` instance, which can be then used to
-validate or adapt values.
+``parse`` returns a ``Validator`` instance, which can be then used to validate
+or adapt values.
 
 Validation
 ##########
@@ -172,8 +172,8 @@ by default.
 
 An existing class can be easily used as an adaptor by being wrapped in ``AdaptTo``::
 
-	>>> from valideer import AdaptTo
-	>>> adapt_prices = Validator.parse({"prices": [AdaptTo(float)]}).validate
+	>>> import valideer as V
+	>>> adapt_prices = V.parse({"prices": [V.AdaptTo(float)]}).validate
 	>>> adapt_prices({"prices": ["2", "3.1", 1]})
 	{'prices': [2.0, 3.1, 1.0]}
 	>>> adapt_prices({"prices": ["2", "3f"]})
@@ -199,8 +199,8 @@ Explicit Instantiation
 ######################
 
 The usual way to create a validator is by passing an appropriate nested structure
-to ``Validator.parse``, as outlined above.  This enables concise schema definitions
-with minimal boilerplate. In case this seems too cryptic or "unpythonic" for your
+to ``parse``, as outlined above.  This enables concise schema definitions with
+minimal boilerplate. In case this seems too cryptic or "unpythonic" for your
 taste, a validator can be also created explicitly from regular Python classes::
 
 	>>> from valideer import Object, HomogeneousSequence, Number, String, Range
@@ -404,12 +404,13 @@ Shortcut Registration
 #####################
 
 Setting a ``name`` class attribute is the simplest way to create a validator
-shortcut. A shortcut can also be created explicitly with the ``Validator.register``
-static method::
+shortcut. A shortcut can also be created explicitly with the ``valideer.register``
+function::
 
-	>>> Validator.register("strong_password", Password(min_length=8, min_digits=1))
-	>>> is_fair_password = Validator.parse("password").is_valid
-	>>> is_strong_password = Validator.parse("strong_password").is_valid
+	>>> import valideer as V
+	>>> V.register("strong_password", Password(min_length=8, min_digits=1))
+	>>> is_fair_password = V.parse("password").is_valid
+	>>> is_strong_password = V.parse("strong_password").is_valid
 	>>> for pwd in "passwd", "Passwd", "PASSWd", "Pas5word":
 	>>>     print (pwd, is_fair_password(pwd), is_strong_password(pwd))
 	('passwd', False, False)
@@ -432,14 +433,14 @@ a value if and only if it is rejected by another validator::
 	        return value
 
 If we'd like to parse ``'!foo'`` strings as a shortcut for ``Not('foo')``, we
-can do so with the ``Validator.register_factory`` decorator::
+can do so with the ``valideer.register_factory`` decorator::
 
-	>>> @Validator.register_factory
+	>>> @V.register_factory
 	>>> def NotFactory(obj):
 	>>>     if isinstance(obj, basestring) and obj.startswith("!"):
 	>>>         return Not(obj[1:])
 	>>>
-	>>> validate = Validator.parse({"i": "integer", "s": "!number"}).validate
+	>>> validate = V.parse({"i": "integer", "s": "!number"}).validate
 	>>> validate({"i": 4, "s": ""})
 	{'i': 4, 's': ''}
 	>>> validate({"i": 4, "s": 1.2})

@@ -19,10 +19,12 @@ class Gender(V.Enum):
 
 class TestValidator(unittest.TestCase):
 
+    parse = staticmethod(V.parse)
+
     def setUp(self):
         V.Object.REQUIRED_PROPERTIES = True
         V.base.reset_type_names()
-        self.complex_validator = V.Validator.parse({
+        self.complex_validator = self.parse({
             "n": "number",
             "?i": V.Nullable("integer", 0),
             "?b": bool,
@@ -41,7 +43,7 @@ class TestValidator(unittest.TestCase):
                     V.HomogeneousSequence, V.HeterogeneousSequence,
                     V.Mapping, V.Object, int, float, str, unicode,
                     Fraction, Fraction(), Gender, Gender()]:
-            self.assertFalse(V.Validator.parse(obj).is_valid(None))
+            self.assertFalse(self.parse(obj).is_valid(None))
 
     def test_boolean(self):
         for obj in "boolean", V.Boolean, V.Boolean():
@@ -408,7 +410,7 @@ class TestValidator(unittest.TestCase):
             ["foo"],
             {"field": "foo"},
         ]:
-            self.assertRaises(V.SchemaError, V.Validator.parse, obj)
+            self.assertRaises(V.SchemaError, self.parse, obj)
 
     def test_not_implemented_validation(self):
         class MyValidator(V.Validator):
@@ -418,12 +420,13 @@ class TestValidator(unittest.TestCase):
         self.assertRaises(NotImplementedError, validator.validate, 1)
 
     def test_register(self):
-        V.Validator.register("to_int", V.AdaptTo(int, traps=(ValueError, TypeError)))
-        self._testValidation("to_int",
-                             invalid=["12b", "1.2"],
-                             adapted=[(12, 12), ("12", 12), (1.2, 1)])
+        for register in V.register, V.Validator.register:
+            register("to_int", V.AdaptTo(int, traps=(ValueError, TypeError)))
+            self._testValidation("to_int",
+                                 invalid=["12b", "1.2"],
+                                 adapted=[(12, 12), ("12", 12), (1.2, 1)])
 
-        self.assertRaises(TypeError, V.Validator.register, "to_int", int)
+            self.assertRaises(TypeError, register, "to_int", int)
 
     def test_complex_validation(self):
 
@@ -594,7 +597,7 @@ class TestValidator(unittest.TestCase):
 
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
-        validator = V.Validator.parse(obj)
+        validator = self.parse(obj)
         for value in invalid:
             self.assertFalse(validator.is_valid(value))
             self.assertRaises(V.ValidationError, validator.validate, value, adapt=False)
@@ -614,12 +617,17 @@ class TestValidator(unittest.TestCase):
                 self.assertEqual(error_repr, error, "Actual error: %r" % error_repr)
 
 
+class TestValidatorModuleParse(TestValidator):
+
+    parse = staticmethod(V.Validator.parse)
+
+
 class OptionalPropertiesTestValidator(TestValidator):
 
     def setUp(self):
         super(OptionalPropertiesTestValidator, self).setUp()
         V.Object.REQUIRED_PROPERTIES = False
-        self.complex_validator = V.Validator.parse({
+        self.complex_validator = self.parse({
             "+n": "+number",
             "i": V.Nullable("integer", 0),
             "b": bool,

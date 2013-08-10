@@ -35,7 +35,11 @@ class AnyOf(Validator):
 
 
 class Nullable(Validator):
-    """A validator that also accepts None."""
+    """A validator that also accepts None.
+
+    None is adapted to ``default``. ``default`` can also be a zero-argument
+    callable, in which None is adapted to ``default()``.
+    """
 
     def __init__(self, schema, default=None):
         if isinstance(schema, Validator):
@@ -49,7 +53,10 @@ class Nullable(Validator):
 
     def validate(self, value, adapt=True):
         if value is None:
-            return self.default
+            if callable(self.default):
+                return self.default()
+            else:
+                return self.default
         return self._validator.validate(value, adapt)
 
     @property

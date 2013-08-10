@@ -197,6 +197,14 @@ class TestValidator(unittest.TestCase):
                              valid=[None, [], ["foo"], [None], ["foo", None]],
                              invalid=["", [None, "foo", 1]])
 
+    def test_nullable_with_default(self):
+        self._testValidation(V.Nullable("integer", -1),
+                             adapted=[(None, -1), (0, 0)],
+                             invalid=[1.1, True, False])
+        self._testValidation(V.Nullable("integer", lambda:-1),
+                             adapted=[(None, -1), (0, 0)],
+                             invalid=[1.1, True, False])
+
     def test_nonnullable(self):
         for obj in V.NonNullable, V.NonNullable():
             self._testValidation(obj,

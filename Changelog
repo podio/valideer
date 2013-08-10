@@ -1,3 +1,9 @@
+0.3
+===
+- Allow the Nullable default to be a zero-arg callable.
+- Exposed as top level functions the ``parse``, ``register`` and``register_factory``
+  Validator static methods (the latter are still kept for backwards compatibility).
+
 0.2
 ===
 - Better, customizable ValidationError messages.

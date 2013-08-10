@@ -220,6 +220,19 @@ class TestValidator(unittest.TestCase):
                              valid=[1, {"foo" : 1}],
                              invalid=[{"foo" : 1.1}])
 
+    def test_allof(self):
+        self._testValidation(V.AllOf({"id": "integer"}, V.Mapping("string", "number")),
+                             valid=[{"id": 3}, {"id": 3, "bar": 4.5}],
+                             invalid=[{"id" : 1.1, "bar":4.5},
+                                      {"id" : 3, "bar": True},
+                                      {"id" : 3, 12: 4.5}])
+
+        self._testValidation(V.AllOf("number",
+                                     lambda x: x > 0,
+                                     V.AdaptBy(datetime.fromtimestamp)),
+                            adapted=[(1373475820, datetime(2013, 7, 10, 20, 3, 40))],
+                            invalid=["1373475820", -1373475820])
+
     def test_condition(self):
         def is_odd(n): return n % 2 == 1
         is_even = lambda n: n % 2 == 0

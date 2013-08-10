@@ -7,15 +7,21 @@ import numbers
 import re
 
 __all__ = [
-    "AnyOf", "Nullable", "NonNullable",
+    "AnyOf", "AllOf", "Nullable", "NonNullable",
     "Enum", "Condition", "AdaptBy", "AdaptTo",
     "Type", "Boolean", "Integer", "Number", "Range",
     "String", "Pattern", "Date", "Datetime", "Time",
     "HomogeneousSequence", "HeterogeneousSequence", "Mapping", "Object",
 ]
 
+
 class AnyOf(Validator):
-    """A composite validator that accepts values accepted by any of its components."""
+    """A composite validator that accepts values accepted by any of its component
+    validators.
+
+    In case of adaptation, the first validator to successfully adapt the value
+    is used.
+    """
 
     def __init__(self, *schemas):
         self._validators = map(parse, schemas)
@@ -32,6 +38,27 @@ class AnyOf(Validator):
     @property
     def humanized_name(self):
         return " or ".join(v.humanized_name for v in self._validators)
+
+
+class AllOf(Validator):
+    """A composite validator that accepts values accepted by all of its component
+    validators.
+
+    In case of adaptation, the adapted value from the last validator is returned.
+    """
+
+    def __init__(self, *schemas):
+        self._validators = map(parse, schemas)
+
+    def validate(self, value, adapt=True):
+        result = value
+        for validator in self._validators:
+            result = validator.validate(value, adapt)
+        return result
+
+    @property
+    def humanized_name(self):
+        return " and ".join(v.humanized_name for v in self._validators)
 
 
 class Nullable(Validator):

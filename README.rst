@@ -335,7 +335,7 @@ Composite
 * ``valideer.Nullable(schema, default=None)``: Accepts values that are valid for
   ``schema`` or ``None``. ``default`` is returned as the adapted value of ``None``.
   ``default`` can also be a zero-argument callable, in which case the adapted
-    value of ``None`` is ``default()``.
+  value of ``None`` is ``default()``.
 
   :Shortcut: "?{*validator_name*}". For example ``"?integer"`` accepts any integer
   			 or ``None`` value.
@@ -352,6 +352,11 @@ Composite
 
 * ``valideer.AnyOf(*schemas)``: Accepts values that are valid for at least one
   of the given ``schemas``.
+
+  :Shortcut: *N/A*
+
+* ``valideer.AllOf(*schemas)``: Accepts values that are valid for all the given
+  ``schemas``.
 
   :Shortcut: *N/A*
 

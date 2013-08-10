@@ -588,23 +588,28 @@ class Object(Type):
 
     REQUIRED_PROPERTIES = False
 
-    def __init__(self, optional={}, required={}):
+    def __init__(self, optional={}, required={}, additional=True):
         """Instantiate an Object validator.
 
         :param optional: The schema of optional properties, specified as a
             ``{name: schema}`` dict.
         :param required: The schema of required properties, specified as a
             ``{name: schema}`` dict.
-
-        Extra properties not specified as either ``optional`` or ``required``
-        are implicitly allowed.
+        :param additional: The schema of all properties that are not explicitly
+            defined as ``optional`` or ``required``. It can also be ``False`` to
+            disallow any additional properties or ``True`` to allow any value
+            for additional properties.
         """
         super(Object, self).__init__()
-        self._required_keys = set(required)
+        if not isinstance(additional, bool):
+            additional = parse(additional)
         self._named_validators = [
             (name, parse(schema))
             for name, schema in dict(optional, **required).iteritems()
         ]
+        self._required_keys = set(required)
+        self._all_keys = set(name for name, _ in self._named_validators)
+        self._additional = additional
 
     def validate(self, value, adapt=True):
         super(Object, self).validate(value)
@@ -628,6 +633,21 @@ class Object(Type):
                     raise ex.add_context(name)
             elif isinstance(validator, Nullable) and validator.default is not None:
                 yield (name, validator.default)
+
+        if self._additional != True:
+            all_keys = self._all_keys
+            additional_properties = [k for k in value if k not in all_keys]
+            if additional_properties:
+                if self._additional == False:
+                    raise ValidationError("additional properties: %s" %
+                                          additional_properties, value)
+                additional_validate = self._additional.validate
+                for name in additional_properties:
+                    try:
+                        yield (name, additional_validate(value[name], adapt))
+                    except ValidationError as ex:
+                        raise ex.add_context(name)
+
 
 @Object.register_factory
 def _ObjectFactory(obj):

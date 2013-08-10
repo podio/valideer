@@ -170,6 +170,25 @@ class TestValidator(unittest.TestCase):
         self._testValidation({"foo": "number", "?bar": V.Nullable("boolean", False)},
                              adapted=[({"foo":-12}, {"foo":-12, "bar":False})])
 
+    def test_no_additional_properties(self):
+        self._testValidation(V.Object(required={"foo": "number"},
+                                      optional={"bar": "string"},
+                                      additional=False),
+                             valid=[{"foo":23},
+                                    {"foo":-23., "bar":"yo"}],
+                             invalid=[{"foo":23, "xyz":1},
+                                      {"foo":-23., "bar":"yo", "xyz":1}]
+                             )
+
+    def test_additional_properties_schema(self):
+        self._testValidation(V.Object(required={"foo": "number"},
+                                      optional={"bar": "string"},
+                                      additional="boolean"),
+                             valid=[{"foo":23, "bar":"yo", "x1":True, "x2":False}],
+                             invalid=[{"foo":23, "x1":1},
+                                      {"foo":-23., "bar":"yo", "x1":True, "x2":0}]
+                             )
+
     def test_enum(self):
         self._testValidation(V.Enum([1, 2, 3]),
                              valid=[1, 2, 3], invalid=[0, 4, "1", [1]])

@@ -1,5 +1,6 @@
 0.3
 ===
+- Allow specifying schema of additional object properties or disallowing them.
 - Added ChainOf() composite validator.
 - Added AllOf() composite validator.
 - Allow the Nullable default to be a zero-arg callable.

@@ -304,14 +304,17 @@ Containers
 
   :Shortcut: *N/A*
 
-* ``valideer.Object(optional={}, required={})``: Accepts JSON-like objects
-  (``collections.Mapping`` instances with string keys). Properties that are
-  specified as ``optional`` or ``required`` are validated against the respective
-  value schema. Any additional unspecified properties are implicitly valid.
+* ``valideer.Object(optional={}, required={}, additional=True)``: Accepts JSON-like
+  objects (``collections.Mapping`` instances with string keys). Properties that
+  are specified as ``optional`` or ``required`` are validated against the respective
+  value schema. Any additional properties are either allowed (if ``additional``
+  is True), disallowed (if ``additional`` is False) or validated against the
+  ``additional`` schema.
 
   :Shortcut: {"*property*": *value_schema*, "*property*": *value_schema*, ...,
   			  "*property*": *value_schema*}. Properties that start with ``'+'``
-  			  are required, the rest are optional.
+  			  are required, the rest are optional and additional properties are
+  			  allowed.
 
 Adaptors
 ########

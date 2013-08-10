@@ -360,6 +360,11 @@ Composite
 
   :Shortcut: *N/A*
 
+* ``valideer.ChainOf(*schemas)``: Passes values through a chain of validator and
+  adaptor ``schemas``.
+
+  :Shortcut: *N/A*
+
 
 User Defined Validators
 -----------------------

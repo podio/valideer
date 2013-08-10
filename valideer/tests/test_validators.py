@@ -233,6 +233,14 @@ class TestValidator(unittest.TestCase):
                             adapted=[(1373475820, datetime(2013, 7, 10, 20, 3, 40))],
                             invalid=["1373475820", -1373475820])
 
+    def test_chainof(self):
+        self._testValidation(V.ChainOf(V.AdaptTo(int),
+                                       V.Condition(lambda x: x > 0),
+                                       V.AdaptBy(datetime.fromtimestamp)),
+                            adapted=[(1373475820, datetime(2013, 7, 10, 20, 3, 40)),
+                                     ("1373475820", datetime(2013, 7, 10, 20, 3, 40))],
+                            invalid=["nan", -1373475820])
+
     def test_condition(self):
         def is_odd(n): return n % 2 == 1
         is_even = lambda n: n % 2 == 0

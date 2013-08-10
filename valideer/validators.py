@@ -7,7 +7,7 @@ import numbers
 import re
 
 __all__ = [
-    "AnyOf", "AllOf", "Nullable", "NonNullable",
+    "AnyOf", "AllOf", "ChainOf", "Nullable", "NonNullable",
     "Enum", "Condition", "AdaptBy", "AdaptTo",
     "Type", "Boolean", "Integer", "Number", "Range",
     "String", "Pattern", "Date", "Datetime", "Time",
@@ -59,6 +59,25 @@ class AllOf(Validator):
     @property
     def humanized_name(self):
         return " and ".join(v.humanized_name for v in self._validators)
+
+
+class ChainOf(Validator):
+    """A composite validator that passes a value through a sequence of validators.
+
+    value -> validator1 -> value2 -> validator2 -> ... -> validatorN -> final_value
+    """
+
+    def __init__(self, *schemas):
+        self._validators = map(parse, schemas)
+
+    def validate(self, value, adapt=True):
+        for validator in self._validators:
+            value = validator.validate(value, adapt)
+        return value
+
+    @property
+    def humanized_name(self):
+        return " chained to ".join(v.humanized_name for v in self._validators)
 
 
 class Nullable(Validator):

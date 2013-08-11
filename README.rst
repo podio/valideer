@@ -97,7 +97,7 @@ We'll demonstrate ``valideer`` using the following `JSON schema example`_::
 	}
 
 This can be specified by passing a similar but less verbose structure to the
-``valideer.parse`` functions::
+``valideer.parse`` function::
 
 	>>> import valideer as V
 	>>> product_schema = {

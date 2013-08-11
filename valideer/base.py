@@ -48,7 +48,7 @@ class ValidationError(ValueError):
         return self
 
 
-def parse(obj, required_properties=None):
+def parse(obj, required_properties=None, additional_properties=None):
     """Try to parse the given ``obj`` as a validator instance.
 
     :param obj: If it is a ...
@@ -60,10 +60,17 @@ def parse(obj, required_properties=None):
           create it. The search order is the reverse of the factory registration
           order. The caller is responsible for ensuring there are no ambiguous
           values that can be parsed by more than one factory.
-    :param required_properties: Specifies whether ``Object`` properties are
-        required or optional by default for this parse call. If True, they are
-        required; if False, they are optional; if None, it is determined by the
+    :param required_properties: Specifies for this parse call whether parsed
+        ``Object`` properties are required or optional by default. If True, they
+        are required; if False, they are optional; if None, it is determined by
         the (global) ``Object.REQUIRED_PROPERTIES`` attribute.
+    :param additional_properties: Specifies for this parse call the schema of
+        all ``Object`` properties that are not explicitly defined as ``optional``
+        or ``required``.  It can also be:
+            - ``False`` to disallow any additional properties
+            - ``True`` to allow any value for additional properties
+            - ``None`` to use the value of the (global)
+              ``Object.ADDITIONAL_PROPERTIES`` attribute.
     :raises SchemaError: If no appropriate validator could be found.
     """
     if required_properties is not None and not isinstance(required_properties, bool):
@@ -79,12 +86,13 @@ def parse(obj, required_properties=None):
         try:
             validator = _NAMED_VALIDATORS[obj]
         except (KeyError, TypeError):
-            if required_properties is None:
+            if required_properties is additional_properties is None:
                 validator = _parse_from_factories(obj)
             else:
                 from .validators import _ObjectFactory
                 with _register_temp_factories(partial(_ObjectFactory,
-                                      required_properties=required_properties)):
+                                      required_properties=required_properties,
+                                      additional_properties=additional_properties)):
                     validator = _parse_from_factories(obj)
         else:
             if inspect.isclass(validator) and issubclass(validator, Validator):

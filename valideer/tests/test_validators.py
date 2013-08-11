@@ -166,7 +166,7 @@ class TestValidator(unittest.TestCase):
                                       {"bar":False, "baz":"yo"},
                                       {"bar":True, "foo":3.1}])
 
-    def test_required_properties_parameter(self):
+    def test_required_properties_parse_parameter(self):
         schema = {
             "foo": "number",
             "?bar": "boolean",
@@ -204,6 +204,25 @@ class TestValidator(unittest.TestCase):
                              invalid=[{"foo":23, "x1":1},
                                       {"foo":-23., "bar":"yo", "x1":True, "x2":0}]
                              )
+
+    def test_additional_properties_parse_parameter(self):
+        schema = {
+            "?bar": "boolean",
+            "?nested": [{
+                "?baz": "integer"
+            }]
+        }
+        values = [{"x1": "yes"},
+                  {"bar":True, "nested": [{"x1": "yes"}]}]
+        for _ in xrange(3):
+            self._testValidation(V.parse(schema, additional_properties=True),
+                                 valid=values)
+            self._testValidation(V.parse(schema, additional_properties=False),
+                                 invalid=values)
+            self._testValidation(V.parse(schema, additional_properties="string"),
+                                 valid=values,
+                                 invalid=[{"x1": 42},
+                                          {"bar":True, "nested": [{"x1": 42}]}])
 
     def test_enum(self):
         self._testValidation(V.Enum([1, 2, 3]),

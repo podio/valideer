@@ -591,8 +591,9 @@ class Object(Type):
     accept_types = collections.Mapping
 
     REQUIRED_PROPERTIES = False
+    ADDITIONAL_PROPERTIES = True
 
-    def __init__(self, optional={}, required={}, additional=True):
+    def __init__(self, optional={}, required={}, additional=None):
         """Instantiate an Object validator.
 
         :param optional: The schema of optional properties, specified as a
@@ -600,11 +601,15 @@ class Object(Type):
         :param required: The schema of required properties, specified as a
             ``{name: schema}`` dict.
         :param additional: The schema of all properties that are not explicitly
-            defined as ``optional`` or ``required``. It can also be ``False`` to
-            disallow any additional properties or ``True`` to allow any value
-            for additional properties.
+            defined as ``optional`` or ``required``. It can also be:
+            - ``True`` to allow any value for additional properties.
+            - ``False`` to disallow any additional properties.
+            - ``None`` to use the value of the ``ADDITIONAL_PROPERTIES`` class
+              attribute.
         """
         super(Object, self).__init__()
+        if additional is None:
+            additional = self.ADDITIONAL_PROPERTIES
         if not isinstance(additional, bool):
             additional = parse(additional)
         self._named_validators = [
@@ -654,7 +659,7 @@ class Object(Type):
 
 
 @Object.register_factory
-def _ObjectFactory(obj, required_properties=None):
+def _ObjectFactory(obj, required_properties=None, additional_properties=None):
     """Parse a python ``{name: schema}`` dict as an ``Object`` instance.
 
     - A property name prepended by "+" is required
@@ -664,6 +669,8 @@ def _ObjectFactory(obj, required_properties=None):
         is None and ``Object.REQUIRED_PROPERTIES``
       - optional if ``required_properties`` is False or ``required_properties``
         is None and ``not Object.REQUIRED_PROPERTIES``
+
+    :param additional_properties: The ``additional`` parameter to ``Object()``.
     """
     if isinstance(obj, dict):
         if required_properties is None:
@@ -678,7 +685,7 @@ def _ObjectFactory(obj, required_properties=None):
                 required[key] = value
             else:
                 optional[key] = value
-        return Object(optional, required)
+        return Object(optional, required, additional_properties)
 
 
 def _format_types(types):

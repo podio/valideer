@@ -650,21 +650,27 @@ class Object(Type):
 
 
 @Object.register_factory
-def _ObjectFactory(obj):
+def _ObjectFactory(obj, required_properties=None):
     """Parse a python ``{name: schema}`` dict as an ``Object`` instance.
 
-    A property name can be prepended by "+" or "?" to mark it explicitly as
-    required or optional, respectively. Otherwise ``Object.REQUIRED_PROPERTIES``
-    is used to determine if properties are required by default.
+    - A property name prepended by "+" is required
+    - A property name prepended by "?" is optional
+    - Any other property is:
+      - required if ``required_properties`` is True or ``required_properties``
+        is None and ``Object.REQUIRED_PROPERTIES``
+      - optional if ``required_properties`` is False or ``required_properties``
+        is None and ``not Object.REQUIRED_PROPERTIES``
     """
     if isinstance(obj, dict):
+        if required_properties is None:
+            required_properties = Object.REQUIRED_PROPERTIES
         optional, required = {}, {}
         for key, value in obj.iteritems():
             if key.startswith("+"):
                 required[key[1:]] = value
             elif key.startswith("?"):
                 optional[key[1:]] = value
-            elif Object.REQUIRED_PROPERTIES:
+            elif required_properties:
                 required[key] = value
             else:
                 optional[key] = value

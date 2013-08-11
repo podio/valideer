@@ -1,5 +1,9 @@
 0.3
 ===
+- Added an optional ``required_properties`` parameter to parse() to allow
+  specifying for a single parse call only whether object properties are required
+  or optional by default. Specifying the same behavior globally through the
+  ``Object.REQUIRED_PROPERTIES`` attribute is still supported.
 - Allow specifying schema of additional object properties or disallowing them.
 - Added ChainOf() composite validator.
 - Added AllOf() composite validator.

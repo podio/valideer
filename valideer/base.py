@@ -1,4 +1,7 @@
 import inspect
+from contextlib import contextmanager
+from functools import partial
+from threading import RLock
 from decorator import decorator
 
 __all__ = [
@@ -9,6 +12,7 @@ __all__ = [
 
 _NAMED_VALIDATORS = {}
 _VALIDATOR_FACTORIES = []
+_VALIDATOR_FACTORIES_LOCK = RLock()
 
 class SchemaError(Exception):
     """An object cannot be parsed as a validator."""
@@ -44,7 +48,7 @@ class ValidationError(ValueError):
         return self
 
 
-def parse(obj):
+def parse(obj, required_properties=None):
     """Try to parse the given ``obj`` as a validator instance.
 
     :param obj: If it is a ...
@@ -56,8 +60,15 @@ def parse(obj):
           create it. The search order is the reverse of the factory registration
           order. The caller is responsible for ensuring there are no ambiguous
           values that can be parsed by more than one factory.
+    :param required_properties: Specifies whether ``Object`` properties are
+        required or optional by default for this parse call. If True, they are
+        required; if False, they are optional; if None, it is determined by the
+        the (global) ``Object.REQUIRED_PROPERTIES`` attribute.
     :raises SchemaError: If no appropriate validator could be found.
     """
+    if required_properties is not None and not isinstance(required_properties, bool):
+        raise TypeError("required_properties must be bool or None")
+
     validator = None
 
     if isinstance(obj, Validator):
@@ -68,10 +79,13 @@ def parse(obj):
         try:
             validator = _NAMED_VALIDATORS[obj]
         except (KeyError, TypeError):
-            for factory in _VALIDATOR_FACTORIES:
-                validator = factory(obj)
-                if validator is not None:
-                    break
+            if required_properties is None:
+                validator = _parse_from_factories(obj)
+            else:
+                from .validators import _ObjectFactory
+                with _register_temp_factories(partial(_ObjectFactory,
+                                      required_properties=required_properties)):
+                    validator = _parse_from_factories(obj)
         else:
             if inspect.isclass(validator) and issubclass(validator, Validator):
                 _NAMED_VALIDATORS[obj] = validator = validator()
@@ -80,6 +94,13 @@ def parse(obj):
         raise SchemaError("%r cannot be parsed as a Validator" % obj)
 
     return validator
+
+
+def _parse_from_factories(obj):
+    for factory in _VALIDATOR_FACTORIES:
+        validator = factory(obj)
+        if validator is not None:
+            return validator
 
 
 def register(name, validator):
@@ -98,6 +119,16 @@ def register_factory(func):
     """
     _VALIDATOR_FACTORIES.insert(0, func)
     return func
+
+
+@contextmanager
+def _register_temp_factories(*funcs):
+    with _VALIDATOR_FACTORIES_LOCK:
+        for func in funcs:
+            _VALIDATOR_FACTORIES.insert(0, func)
+        yield
+        for func in reversed(funcs):
+            _VALIDATOR_FACTORIES.remove(func)
 
 
 class Validator(object):

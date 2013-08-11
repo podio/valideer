@@ -156,7 +156,7 @@ class TestValidator(unittest.TestCase):
                              invalid=[{"foo": 1, "bar": []},
                                       {"foo": "baz", "bar": 2.3}])
 
-    def test_required_properties(self):
+    def test_required_properties_global(self):
         self._testValidation({"foo": "number", "?bar": "boolean", "baz":"string"},
                              valid=[{"foo":-23., "baz":"yo"}],
                              invalid=[{},
@@ -165,6 +165,22 @@ class TestValidator(unittest.TestCase):
                                       {"foo":3},
                                       {"bar":False, "baz":"yo"},
                                       {"bar":True, "foo":3.1}])
+
+    def test_required_properties_parameter(self):
+        schema = {
+            "foo": "number",
+            "?bar": "boolean",
+            "?nested": [{
+                "baz": "string"
+            }]
+        }
+        values = [{}, {"bar":True}, {"foo":3, "nested":[{}]}]
+        for _ in xrange(3):
+            self._testValidation(V.parse(schema, required_properties=True),
+                                 invalid=values)
+            self._testValidation(V.parse(schema, required_properties=False),
+                                 valid=values)
+            self.assertRaises(TypeError, V.parse, schema, required_properties=1)
 
     def test_adapt_missing_property(self):
         self._testValidation({"foo": "number", "?bar": V.Nullable("boolean", False)},
@@ -689,7 +705,7 @@ class OptionalPropertiesTestValidator(TestValidator):
             "o": V.NonNullable({"+i2": "integer"}),
         })
 
-    def test_required_properties(self):
+    def test_required_properties_global(self):
         self._testValidation({"+foo": "number", "bar": "boolean", "+baz":"string"},
                              valid=[{"foo":-23., "baz":"yo"}],
                              invalid=[{},

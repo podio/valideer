@@ -95,15 +95,19 @@ class Nullable(Validator):
             if isinstance(validator, (Nullable, NonNullable)):
                 validator = validator._validator
             self._validator = validator
-        self.default = default
+        self._default = default
 
     def validate(self, value, adapt=True):
         if value is None:
-            if callable(self.default):
-                return self.default()
-            else:
-                return self.default
+            return self.default
         return self._validator.validate(value, adapt)
+
+    @property
+    def default(self):
+        if callable(self._default):
+            return self._default()
+        else:
+            return self._default
 
     @property
     def humanized_name(self):
@@ -631,7 +635,7 @@ class Object(Type):
                     yield (name, validator.validate(value[name], adapt))
                 except ValidationError as ex:
                     raise ex.add_context(name)
-            elif isinstance(validator, Nullable) and validator.default is not None:
+            elif isinstance(validator, Nullable) and validator._default is not None:
                 yield (name, validator.default)
 
         if self._additional != True:

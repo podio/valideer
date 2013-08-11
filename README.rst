@@ -195,6 +195,57 @@ for adapting function inputs::
 	>>> get_sum_price({"prices": ["2", 1, None]})
 	ValidationError: Invalid value None (NoneType): float() argument must be a string or a number (at json['prices'][2])
 
+Required and additional properties
+##################################
+
+By default object properties are considered optional unless they start with "+".
+This default can be inverted by calling ``parse`` with ``required_properties=True``.
+In this case object properties are considered required by default unless they
+start with "?". For example::
+
+	validator = V.parse({
+	    "+name": "string",
+	    "duration": {
+	        "+hours": "integer",
+	        "+minutes": "integer",
+	        "seconds": "integer"
+	    }
+	})
+
+is equivalent to::
+
+	validator = V.parse({
+	    "name": "string",
+	    "?duration": {
+	        "hours": "integer",
+	        "minutes": "integer",
+	        "?seconds": "integer"
+	    }
+	}, required_properties=True)
+
+Similarly, additional properties that are not specified as either required or
+optional are allowed by default. This default can be overriden by calling ``parse``
+with ``additional_properties=False`` to disallow all additional properties, or
+with ``additional_properties=<extra_schema>`` to validate all additional properties
+using ``extra_schema``::
+
+	>>> schema = {
+	>>>     "name": "string",
+	>>>     "duration": {
+	>>>         "hours": "integer",
+	>>>         "minutes": "integer",
+	>>>     }
+	>>> }
+	>>>
+	>>> data = {"name": "lap", "duration": {"hours":3, "minutes":33, "seconds": 12}}
+	>>> V.parse(schema).validate(data)
+	{'duration': {'hours': 3, 'minutes': 33, 'seconds': 12}, 'name': 'lap'}
+	>>> V.parse(schema, additional_properties=False).validate(data)
+	ValidationError: Invalid value {'hours': 3, 'seconds': 12, 'minutes': 33} (dict): additional properties: ['seconds'] (at duration)
+	>>> V.parse(schema, additional_properties="string").validate(data)
+	ValidationError: Invalid value 12 (int): must be string (at duration['seconds'])
+
+
 Explicit Instantiation
 ######################
 

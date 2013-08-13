@@ -1,3 +1,20 @@
+0.3
+===
+- Exposed as top level functions the ``parse``, ``register`` and``register_factory``
+  Validator static methods (the latter are still kept for backwards compatibility).
+- Allow the Nullable default to be a zero-arg callable.
+- Added AllOf() composite validator.
+- Added ChainOf() composite validator.
+- Allow specifying schema of additional object properties or disallowing them,
+  either locally (by passing an ``additional`` parameter to ``Object``) or
+  globally (by setting the ``Object.ADDITIONAL_PROPERTIES`` class attribute).
+- Added an optional ``additional_properties`` parameter to ``parse()`` to allow
+  specifying for a single parse call the handling of additional object properties.
+- Added an optional ``required_properties`` parameter to ``parse()`` to allow
+  specifying for a single parse call whether object properties are required or
+  optional by default. Specifying the same behaviour globally through the
+  ``Object.REQUIRED_PROPERTIES`` attribute is still supported.
+
 0.2
 ===
 - Better, customizable ValidationError messages.

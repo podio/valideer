@@ -1,4 +1,4 @@
-from .base import Validator, ValidationError, get_type_name
+from .base import Validator, ValidationError, parse, get_type_name
 from itertools import izip
 import collections
 import datetime
@@ -6,12 +6,25 @@ import inspect
 import numbers
 import re
 
+__all__ = [
+    "AnyOf", "AllOf", "ChainOf", "Nullable", "NonNullable",
+    "Enum", "Condition", "AdaptBy", "AdaptTo",
+    "Type", "Boolean", "Integer", "Number", "Range",
+    "String", "Pattern", "Date", "Datetime", "Time",
+    "HomogeneousSequence", "HeterogeneousSequence", "Mapping", "Object",
+]
+
 
 class AnyOf(Validator):
-    """A composite validator that accepts values accepted by any of its components."""
+    """A composite validator that accepts values accepted by any of its component
+    validators.
+
+    In case of adaptation, the first validator to successfully adapt the value
+    is used.
+    """
 
     def __init__(self, *schemas):
-        self._validators = map(Validator.parse, schemas)
+        self._validators = map(parse, schemas)
 
     def validate(self, value, adapt=True):
         msgs = []
@@ -27,23 +40,74 @@ class AnyOf(Validator):
         return " or ".join(v.humanized_name for v in self._validators)
 
 
+class AllOf(Validator):
+    """A composite validator that accepts values accepted by all of its component
+    validators.
+
+    In case of adaptation, the adapted value from the last validator is returned.
+    """
+
+    def __init__(self, *schemas):
+        self._validators = map(parse, schemas)
+
+    def validate(self, value, adapt=True):
+        result = value
+        for validator in self._validators:
+            result = validator.validate(value, adapt)
+        return result
+
+    @property
+    def humanized_name(self):
+        return " and ".join(v.humanized_name for v in self._validators)
+
+
+class ChainOf(Validator):
+    """A composite validator that passes a value through a sequence of validators.
+
+    value -> validator1 -> value2 -> validator2 -> ... -> validatorN -> final_value
+    """
+
+    def __init__(self, *schemas):
+        self._validators = map(parse, schemas)
+
+    def validate(self, value, adapt=True):
+        for validator in self._validators:
+            value = validator.validate(value, adapt)
+        return value
+
+    @property
+    def humanized_name(self):
+        return " chained to ".join(v.humanized_name for v in self._validators)
+
+
 class Nullable(Validator):
-    """A validator that also accepts None."""
+    """A validator that also accepts None.
+
+    None is adapted to ``default``. ``default`` can also be a zero-argument
+    callable, in which None is adapted to ``default()``.
+    """
 
     def __init__(self, schema, default=None):
         if isinstance(schema, Validator):
             self._validator = schema
         else:
-            validator = Validator.parse(schema)
+            validator = parse(schema)
             if isinstance(validator, (Nullable, NonNullable)):
                 validator = validator._validator
             self._validator = validator
-        self.default = default
+        self._default = default
 
     def validate(self, value, adapt=True):
         if value is None:
             return self.default
         return self._validator.validate(value, adapt)
+
+    @property
+    def default(self):
+        if callable(self._default):
+            return self._default()
+        else:
+            return self._default
 
     @property
     def humanized_name(self):
@@ -62,7 +126,7 @@ class NonNullable(Validator):
 
     def __init__(self, schema=None):
         if schema is not None and not isinstance(schema, Validator):
-            validator = Validator.parse(schema)
+            validator = parse(schema)
             if isinstance(validator, (Nullable, NonNullable)):
                 validator = validator._validator
             self._validator = validator
@@ -270,7 +334,7 @@ class Range(Validator):
             invalid.
         """
         super(Range, self).__init__()
-        self._validator = Validator.parse(schema)
+        self._validator = parse(schema)
         self._min_value = min_value
         self._max_value = max_value
 
@@ -394,7 +458,7 @@ class HomogeneousSequence(Type):
         """
         super(HomogeneousSequence, self).__init__()
         if item_schema is not None:
-            self._item_validator = Validator.parse(item_schema)
+            self._item_validator = parse(item_schema)
         else:
             self._item_validator = None
         self._min_length = min_length
@@ -444,7 +508,7 @@ class HeterogeneousSequence(Type):
         :param item_schemas: The schema of each element of the the tuple.
         """
         super(HeterogeneousSequence, self).__init__()
-        self._item_validators = map(Validator.parse, item_schemas)
+        self._item_validators = map(parse, item_schemas)
 
     def validate(self, value, adapt=True):
         super(HeterogeneousSequence, self).validate(value)
@@ -485,11 +549,11 @@ class Mapping(Type):
         """
         super(Mapping, self).__init__()
         if key_schema is not None:
-            self._key_validator = Validator.parse(key_schema)
+            self._key_validator = parse(key_schema)
         else:
             self._key_validator = None
         if value_schema is not None:
-            self._value_validator = Validator.parse(value_schema)
+            self._value_validator = parse(value_schema)
         else:
             self._value_validator = None
 
@@ -527,24 +591,34 @@ class Object(Type):
     accept_types = collections.Mapping
 
     REQUIRED_PROPERTIES = False
+    ADDITIONAL_PROPERTIES = True
 
-    def __init__(self, optional={}, required={}):
+    def __init__(self, optional={}, required={}, additional=None):
         """Instantiate an Object validator.
 
         :param optional: The schema of optional properties, specified as a
             ``{name: schema}`` dict.
         :param required: The schema of required properties, specified as a
             ``{name: schema}`` dict.
-
-        Extra properties not specified as either ``optional`` or ``required``
-        are implicitly allowed.
+        :param additional: The schema of all properties that are not explicitly
+            defined as ``optional`` or ``required``. It can also be:
+            - ``True`` to allow any value for additional properties.
+            - ``False`` to disallow any additional properties.
+            - ``None`` to use the value of the ``ADDITIONAL_PROPERTIES`` class
+              attribute.
         """
         super(Object, self).__init__()
-        self._required_keys = set(required)
+        if additional is None:
+            additional = self.ADDITIONAL_PROPERTIES
+        if not isinstance(additional, bool):
+            additional = parse(additional)
         self._named_validators = [
-            (name, Validator.parse(schema))
+            (name, parse(schema))
             for name, schema in dict(optional, **required).iteritems()
         ]
+        self._required_keys = set(required)
+        self._all_keys = set(name for name, _ in self._named_validators)
+        self._additional = additional
 
     def validate(self, value, adapt=True):
         super(Object, self).validate(value)
@@ -566,29 +640,52 @@ class Object(Type):
                     yield (name, validator.validate(value[name], adapt))
                 except ValidationError as ex:
                     raise ex.add_context(name)
-            elif isinstance(validator, Nullable) and validator.default is not None:
+            elif isinstance(validator, Nullable) and validator._default is not None:
                 yield (name, validator.default)
 
+        if self._additional != True:
+            all_keys = self._all_keys
+            additional_properties = [k for k in value if k not in all_keys]
+            if additional_properties:
+                if self._additional == False:
+                    raise ValidationError("additional properties: %s" %
+                                          additional_properties, value)
+                additional_validate = self._additional.validate
+                for name in additional_properties:
+                    try:
+                        yield (name, additional_validate(value[name], adapt))
+                    except ValidationError as ex:
+                        raise ex.add_context(name)
+
+
 @Object.register_factory
-def _ObjectFactory(obj):
+def _ObjectFactory(obj, required_properties=None, additional_properties=None):
     """Parse a python ``{name: schema}`` dict as an ``Object`` instance.
 
-    A property name can be prepended by "+" or "?" to mark it explicitly as
-    required or optional, respectively. Otherwise ``Object.REQUIRED_PROPERTIES``
-    is used to determine if properties are required by default.
+    - A property name prepended by "+" is required
+    - A property name prepended by "?" is optional
+    - Any other property is:
+      - required if ``required_properties`` is True or ``required_properties``
+        is None and ``Object.REQUIRED_PROPERTIES``
+      - optional if ``required_properties`` is False or ``required_properties``
+        is None and ``not Object.REQUIRED_PROPERTIES``
+
+    :param additional_properties: The ``additional`` parameter to ``Object()``.
     """
     if isinstance(obj, dict):
+        if required_properties is None:
+            required_properties = Object.REQUIRED_PROPERTIES
         optional, required = {}, {}
         for key, value in obj.iteritems():
             if key.startswith("+"):
                 required[key[1:]] = value
             elif key.startswith("?"):
                 optional[key[1:]] = value
-            elif Object.REQUIRED_PROPERTIES:
+            elif required_properties:
                 required[key] = value
             else:
                 optional[key] = value
-        return Object(optional, required)
+        return Object(optional, required, additional_properties)
 
 
 def _format_types(types):

@@ -223,6 +223,16 @@ class TestValidator(unittest.TestCase):
                                       {"foo":-23., "bar":"yo", "xyz":1}]
                              )
 
+    def test_remove_additional_properties(self):
+        self._testValidation(V.Object(required={"foo": "number"},
+                                      optional={"bar": "string"},
+                                      additional=V.Object.REMOVE),
+                             adapted=[({"foo":23}, {"foo":23}),
+                                      ({"foo":-23., "bar":"yo"}, {"foo":-23., "bar":"yo"}),
+                                      ({"foo":23, "xyz":1}, {"foo":23}),
+                                      ({"foo":-23., "bar":"yo", "xyz":1}, {"foo":-23., "bar":"yo"})]
+                             )
+
     def test_additional_properties_schema(self):
         self._testValidation(V.Object(required={"foo": "number"},
                                       optional={"bar": "string"},
@@ -246,6 +256,9 @@ class TestValidator(unittest.TestCase):
                                  valid=values)
             self._testValidation(V.parse(schema, additional_properties=False),
                                  invalid=values)
+            self._testValidation(V.parse(schema, additional_properties=V.Object.REMOVE),
+                                 adapted=[(values[0], {}),
+                                          (values[1], {"bar":True, "nested": [{}]})])
             self._testValidation(V.parse(schema, additional_properties="string"),
                                  valid=values,
                                  invalid=[{"x1": 42},
@@ -266,25 +279,29 @@ class TestValidator(unittest.TestCase):
 
             with V.parsing(additional_properties=False):
                 self._testValidation(get_schema(), invalid=values)
-
             # gotcha: calling parse() with additional_properties=False is not
             # equivalent to the above call because the V.Nullable() calls in
             # get_schema have already called implicitly parse() without parameters.
-            if V.Object.ADDITIONAL_PROPERTIES:
-                self._testValidation(V.parse(get_schema(), additional_properties=False),
-                                     invalid=values[:1], valid=values[1:])
-            else:
-                self._testValidation(V.parse(get_schema(), additional_properties=False),
-                                     invalid=values)
+            # The 'additional_properties' parameter effectively is applied at
+            # the top level dict only
+            self._testValidation(V.parse(get_schema(), additional_properties=False),
+                                 invalid=values[:1], valid=values[1:])
+
+            with V.parsing(additional_properties=V.Object.REMOVE):
+                self._testValidation(get_schema(),
+                                     adapted=[(values[0], {}),
+                                              (values[1], {"bar":True, "nested": [{}]})])
+            # same gotcha as above
+            self._testValidation(V.parse(get_schema(), additional_properties=V.Object.REMOVE),
+                                 adapted=[(values[0], {}),
+                                          (values[1], values[1])])
 
             with V.parsing(additional_properties="string"):
                 self._testValidation(get_schema(),
                                      valid=values,
                                      invalid=[{"x1": 42},
                                               {"bar":True, "nested": [{"x1": 42}]}])
-
-            # same gotcha as above; the additional_properties="string" effectively
-            # applies at the top level dict only
+            # same gotcha as above
             self._testValidation(V.parse(get_schema(), additional_properties="string"),
                                  invalid=[{"x1": 42}],
                                  valid=[{"bar":True, "nested": [{"x1": 42}]}])

@@ -195,8 +195,8 @@ for adapting function inputs::
 	>>> get_sum_price({"prices": ["2", 1, None]})
 	ValidationError: Invalid value None (NoneType): float() argument must be a string or a number (at json['prices'][2])
 
-Required and additional properties
-##################################
+Required and additional object properties
+#########################################
 
 By default object properties are considered optional unless they start with "+".
 This default can be inverted by using the ``parsing`` context manager with
@@ -226,9 +226,12 @@ is equivalent to::
 
 Similarly, additional properties that are not specified as either required or
 optional are allowed by default. This default can be overriden by calling
-``parsing`` with ``additional_properties=False`` to disallow all additional
-properties, or with ``additional_properties=<extra_schema>`` to validate all
-additional properties using ``extra_schema``::
+``parsing`` with ``additional_properties=``
+
+- ``False`` to disallow all additional properties, or
+- ``Object.REMOVE`` to remove all additional properties from the adapted value, or
+- any validator or parseable schema to validate all additional property
+  values using this schema::
 
 	>>> schema = {
 	>>>     "name": "string",
@@ -243,6 +246,9 @@ additional properties using ``extra_schema``::
 	>>> with V.parsing(additional_properties=False):
 	...    V.parse(schema).validate(data)
 	ValidationError: Invalid value {'hours': 3, 'seconds': 12, 'minutes': 33} (dict): additional properties: ['seconds'] (at duration)
+	>>> with V.parsing(additional_properties=V.Object.REMOVE):
+	...    print V.parse(schema).validate(data)
+	{'duration': {'hours': 3, 'minutes': 33}, 'name': 'lap'}
 	>>> with V.parsing(additional_properties="string"):
 	...    V.parse(schema).validate(data)
 	ValidationError: Invalid value 12 (int): must be string (at duration['seconds'])

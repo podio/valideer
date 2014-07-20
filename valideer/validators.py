@@ -592,6 +592,7 @@ class Object(Type):
 
     REQUIRED_PROPERTIES = False
     ADDITIONAL_PROPERTIES = True
+    REMOVE = object()
 
     def __init__(self, optional={}, required={}, additional=None):
         """Instantiate an Object validator.
@@ -604,13 +605,15 @@ class Object(Type):
             defined as ``optional`` or ``required``. It can also be:
             - ``True`` to allow any value for additional properties.
             - ``False`` to disallow any additional properties.
+            - ``Object.REMOVE`` to remove any additional properties from the
+              adapted object.
             - ``None`` to use the value of the ``ADDITIONAL_PROPERTIES`` class
               attribute.
         """
         super(Object, self).__init__()
         if additional is None:
             additional = self.ADDITIONAL_PROPERTIES
-        if not isinstance(additional, bool):
+        if not isinstance(additional, bool) and additional is not self.REMOVE:
             additional = parse(additional)
         self._named_validators = [
             (name, parse(schema))
@@ -626,22 +629,20 @@ class Object(Type):
         if missing_required:
             raise ValidationError("missing required properties: %s" %
                                   list(missing_required), value)
-        if adapt:
-            adapted = dict(value)
-            adapted.update(self._iter_validated_items(value, adapt))
-            return adapted
-        for _ in self._iter_validated_items(value, adapt):
-            pass
 
-    def _iter_validated_items(self, value, adapt):
+        result = dict(value) if adapt else None
         for name, validator in self._named_validators:
             if name in value:
                 try:
-                    yield (name, validator.validate(value[name], adapt))
+                    adapted = validator.validate(value[name], adapt)
+                    if result is not None:
+                        result[name] = adapted
                 except ValidationError as ex:
                     raise ex.add_context(name)
-            elif isinstance(validator, Nullable) and validator._default is not None:
-                yield (name, validator.default)
+            elif isinstance(validator, Nullable):
+                adapted = validator.default
+                if adapted is not None and result is not None:
+                    result[name] = adapted
 
         if self._additional != True:
             all_keys = self._all_keys
@@ -650,12 +651,21 @@ class Object(Type):
                 if self._additional == False:
                     raise ValidationError("additional properties: %s" %
                                           additional_properties, value)
-                additional_validate = self._additional.validate
-                for name in additional_properties:
-                    try:
-                        yield (name, additional_validate(value[name], adapt))
-                    except ValidationError as ex:
-                        raise ex.add_context(name)
+                elif self._additional is self.REMOVE:
+                    if result is not None:
+                        for name in additional_properties:
+                            del result[name]
+                else:
+                    additional_validate = self._additional.validate
+                    for name in additional_properties:
+                        try:
+                            adapted = additional_validate(value[name], adapt)
+                            if result is not None:
+                                result[name] = adapted
+                        except ValidationError as ex:
+                            raise ex.add_context(name)
+
+        return result
 
 
 @Object.register_factory

@@ -105,6 +105,9 @@ class TestValidator(unittest.TestCase):
         self._testValidation(V.Range("integer", 1, 2),
                              valid=[1, 2],
                              invalid=[-1, 0, 3])
+        self._testValidation(V.Range(min_value=1, max_value=2),
+                             valid=[1, 2],
+                             invalid=[-1, 0, 3])
 
     def test_homogeneous_sequence(self):
         for obj in V.HomogeneousSequence, V.HomogeneousSequence():

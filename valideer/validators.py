@@ -328,21 +328,23 @@ class Integer(Type):
 class Range(Validator):
     """A validator that accepts values within in a certain range."""
 
-    def __init__(self, schema, min_value=None, max_value=None):
+    def __init__(self, schema=None, min_value=None, max_value=None):
         """Instantiate a :py:class:`Range` validator.
 
+        :param schema: Optional schema or validator for the value.
         :param min_value: If not None, values less than ``min_value`` are
             invalid.
         :param max_value: If not None, values larger than ``max_value`` are
             invalid.
         """
         super(Range, self).__init__()
-        self._validator = parse(schema)
+        self._validator = parse(schema) if schema is not None else None
         self._min_value = min_value
         self._max_value = max_value
 
     def validate(self, value, adapt=True):
-        value = self._validator.validate(value, adapt=adapt)
+        if self._validator is not None:
+            value = self._validator.validate(value, adapt=adapt)
 
         if self._min_value is not None and value < self._min_value:
             raise ValidationError("must not be less than %d" %

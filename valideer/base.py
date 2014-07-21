@@ -1,5 +1,4 @@
 import inspect
-import warnings
 from contextlib import contextmanager
 from threading import RLock
 from decorator import decorator
@@ -60,15 +59,50 @@ def parse(obj, required_properties=None, additional_properties=None):
           create it. The search order is the reverse of the factory registration
           order. The caller is responsible for ensuring there are no ambiguous
           values that can be parsed by more than one factory.
-    :param required_properties, additional_properties: Deprecated; please use
-    the ``parsing()`` context manager instead.
-
+    :param required_properties: Specifies for this parse call whether parsed
+        ``Object`` properties are required or optional by default. If True, they
+        are required; if False, they are optional; if None, it is determined by
+        the (global) ``Object.REQUIRED_PROPERTIES`` attribute.
+    :param additional_properties: Specifies for this parse call the schema of
+        all ``Object`` properties that are not explicitly defined as optional
+        or required. It can also be:
+            - ``True`` to allow any value for additional properties.
+            - ``False`` to disallow any additional properties.
+            - ``valideer.Object.REMOVE`` to remove any additional properties
+              from the adapted object.
+            - ``None`` to use the value of the ``Object.ADDITIONAL_PROPERTIES``
+              class attribute.
     :raises SchemaError: If no appropriate validator could be found.
+
+    .. warning:: Passing ``required_properties`` and/or ``additional_properties`` with
+        value other than None may be non intuitive for schemas that involve nested
+        validators. Take for example the following schema::
+
+            v = V.parse({
+                "x": "integer",
+                "child": V.Nullable({
+                    "y": "integer"
+                })
+            }, required_properties=True)
+
+        Here the top-level properties 'x' and 'child' are required but the nested
+        'y' property is not. This is because by the time V.parse() is called,
+        V.Nullable() has already parsed its argument with the default value of
+        required_properties (=False). Several other builtin validators work similarly
+        to V.Nullable(), accepting one or more schemas to parse. In order to
+        parse an arbitrarily complex nested validator with the same value for
+        ``required_properties`` and/or ``additional_properties``, use the
+        V.parsing() context manager instead::
+
+            with V.parsing(required_properties=True):
+                v = V.parse({
+                    "x": "integer",
+                    "child": V.Nullable({
+                        "y": "integer"
+                    })
+                })
     """
     if not (required_properties is additional_properties is None):
-        warnings.warn("required_properties and additional_properties parse() "
-                      "parameters are deprecated; please use the parsing() "
-                      "context manager instead", DeprecationWarning)
         with parsing(required_properties=required_properties,
                      additional_properties=additional_properties):
             return parse(obj)
@@ -108,12 +142,14 @@ def parsing(required_properties=None, additional_properties=None):
         required; if False, they are optional; if None, it is determined by the
         ``Object.REQUIRED_PROPERTIES`` class attribute.
     :param additional_properties: Specifies the schema of all ``Object`` properties
-    that are not explicitly defined as ``optional``or ``required`` for this block.
-    It can also be:
-        - ``False`` to disallow any additional properties
-        - ``True`` to allow any value for additional properties
+    that are not explicitly defined as optional or required for this block. It
+    can also be:
+        - ``True`` to allow any value for additional properties.
+        - ``False`` to disallow any additional properties.
+        - ``valideer.Object.REMOVE`` to remove any additional properties from the
+          adapted object.
         - ``None`` to use the value of the ``Object.ADDITIONAL_PROPERTIES``
-          class attribute
+          class attribute.
     """
     from .validators import Object, _ObjectFactory
     with _VALIDATOR_FACTORIES_LOCK:

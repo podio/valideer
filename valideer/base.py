@@ -50,33 +50,26 @@ class ValidationError(ValueError):
 def parse(obj, required_properties=None, additional_properties=None):
     """Try to parse the given ``obj`` as a validator instance.
 
-    :param obj: If it is a ...
-        - ``Validator`` instance, return it.
-        - ``Validator`` subclass, instantiate it without arguments and return it.
-        - name of a known ``Validator`` subclass, instantiate the subclass
-          without arguments and return it.
-        - otherwise find the first registered ``Validator`` factory that can
-          create it. The search order is the reverse of the factory registration
+    :param obj: The object to be parsed. If it is a...:
+
+        - :py:class:`Validator` instance, return it.
+        - :py:class:`Validator` subclass, instantiate it without arguments and
+          return it.
+        - :py:attr:`~Validator.name` of a known :py:class:`Validator` subclass,
+          instantiate the subclass without arguments and return it.
+        - otherwise find the first registered :py:class:`Validator` factory that
+          can create it. The search order is the reverse of the factory registration
           order. The caller is responsible for ensuring there are no ambiguous
           values that can be parsed by more than one factory.
-    :param required_properties: Specifies for this parse call whether parsed
-        ``Object`` properties are required or optional by default. If True, they
-        are required; if False, they are optional; if None, it is determined by
-        the (global) ``Object.REQUIRED_PROPERTIES`` attribute.
-    :param additional_properties: Specifies for this parse call the schema of
-        all ``Object`` properties that are not explicitly defined as optional
-        or required. It can also be:
-            - ``True`` to allow any value for additional properties.
-            - ``False`` to disallow any additional properties.
-            - ``valideer.Object.REMOVE`` to remove any additional properties
-              from the adapted object.
-            - ``None`` to use the value of the ``Object.ADDITIONAL_PROPERTIES``
-              class attribute.
+
+    :param required_properties: See the respective :py:func:`parsing` parameter.
+    :param additional_properties: See the respective :py:func:`parsing` parameter.
+
     :raises SchemaError: If no appropriate validator could be found.
 
-    .. warning:: Passing ``required_properties`` and/or ``additional_properties`` with
-        value other than None may be non intuitive for schemas that involve nested
-        validators. Take for example the following schema::
+    .. warning:: Passing ``required_properties`` and/or ``additional_properties``
+        with value other than ``None`` may be non intuitive for schemas that
+        involve nested validators. Take for example the following schema::
 
             v = V.parse({
                 "x": "integer",
@@ -86,13 +79,14 @@ def parse(obj, required_properties=None, additional_properties=None):
             }, required_properties=True)
 
         Here the top-level properties 'x' and 'child' are required but the nested
-        'y' property is not. This is because by the time V.parse() is called,
-        V.Nullable() has already parsed its argument with the default value of
-        required_properties (=False). Several other builtin validators work similarly
-        to V.Nullable(), accepting one or more schemas to parse. In order to
-        parse an arbitrarily complex nested validator with the same value for
-        ``required_properties`` and/or ``additional_properties``, use the
-        V.parsing() context manager instead::
+        'y' property is not. This is because by the time :py:meth:`parse` is called,
+        :py:class:`~valideer.validators.Nullable` has already parsed its argument
+        with the default value of ``required_properties``. Several other builtin
+        validators work similarly to :py:class:`~valideer.validators.Nullable`,
+        accepting one or more schemas to parse. In order to parse an arbitrarily
+        complex nested validator with the same value for ``required_properties``
+        and/or ``additional_properties``, use the :py:func:`parsing` context
+        manager instead::
 
             with V.parsing(required_properties=True):
                 v = V.parse({
@@ -137,19 +131,25 @@ def parsing(required_properties=None, additional_properties=None):
     Context manager for overriding the default validator parsing rules for the
     following code block.
 
-    :param required_properties: Specifies whether parsed ``Object`` properties
-        are required or optional by default for this block. If True, they are
-        required; if False, they are optional; if None, it is determined by the
-        ``Object.REQUIRED_PROPERTIES`` class attribute.
-    :param additional_properties: Specifies the schema of all ``Object`` properties
-    that are not explicitly defined as optional or required for this block. It
-    can also be:
+    :param required_properties: Specifies for this parse call whether parsed
+        :py:class:`~valideer.validators.Object` properties are required or
+        optional by default. It can be:
+
+        - ``True`` for required.
+        - ``False`` for optional.
+        - ``None`` to use the value of the
+          :py:attr:`~valideer.validators.Object.REQUIRED_PROPERTIES` attribute.
+
+    :param additional_properties: Specifies for this parse call the schema of
+        all :py:class:`~valideer.validators.Object` properties that are not
+        explicitly defined as optional or required. It can also be:
+
         - ``True`` to allow any value for additional properties.
         - ``False`` to disallow any additional properties.
-        - ``valideer.Object.REMOVE`` to remove any additional properties from the
-          adapted object.
-        - ``None`` to use the value of the ``Object.ADDITIONAL_PROPERTIES``
-          class attribute.
+        - :py:attr:`~valideer.validators.Object.REMOVE` to remove any additional
+          properties from the adapted object.
+        - ``None`` to use the value of the
+          :py:attr:`~valideer.validators.Object.ADDITIONAL_PROPERTIES` attribute.
     """
     from .validators import Object, _ObjectFactory
     with _VALIDATOR_FACTORIES_LOCK:
@@ -179,8 +179,8 @@ def register_factory(func):
     """Decorator for registering a validator factory.
 
     The decorated factory must be a callable that takes a single parameter
-    that can be any arbitrary object and returns a Validator instance if it
-    can parse the input object successfully, or None otherwise.
+    that can be any arbitrary object and returns a :py:class:`Validator` instance
+    if it can parse the input object successfully, or ``None`` otherwise.
     """
     _VALIDATOR_FACTORIES.insert(0, func)
     return func
@@ -189,9 +189,9 @@ def register_factory(func):
 class Validator(object):
     """Abstract base class of all validators.
 
-    Concrete subclasses must implement ``validate()``. A subclass may optionally
-    define a ``name`` attribute (typically a string) that can be used to specify
-    a validator in ``parse()`` instead of instantiating it explicitly.
+    Concrete subclasses must implement :py:meth:`validate`. A subclass may optionally
+    define a :py:attr:`name` attribute (typically a string) that can be used to specify
+    a validator in :py:meth:`parse` instead of instantiating it explicitly.
     """
 
     class __metaclass__(type):
@@ -207,20 +207,20 @@ class Validator(object):
     def validate(self, value, adapt=True):
         """Check if ``value`` is valid and if so adapt it.
 
-        :param adapt: If False, it indicates that the caller is interested only
-            on whether ``value`` is valid, not on adapting it. This is essentially
-            an optimization hint for cases that validation can be done more
-            efficiently than adaptation.
+        :param adapt: If ``False``, it indicates that the caller is interested
+            only on whether ``value`` is valid, not on adapting it. This is
+            essentially an optimization hint for cases that validation can be
+            done more efficiently than adaptation.
 
         :raises ValidationError: If ``value`` is invalid.
-        :returns: The adapted value if ``adapt`` is True, otherwise anything.
+        :returns: The adapted value if ``adapt`` is ``True``, otherwise anything.
         """
         raise NotImplementedError
 
     def is_valid(self, value):
         """Check if the value is valid.
 
-        :returns: True if the value is valid, False if invalid.
+        :returns: ``True`` if the value is valid, ``False`` if invalid.
         """
         try:
             self.validate(value, adapt=False)
@@ -231,7 +231,7 @@ class Validator(object):
     def error(self, value):
         """Helper method that can be called when ``value`` is deemed invalid.
 
-        Can be overriden to provide customized ``ValidationError``s.
+        Can be overriden to provide customized :py:exc:`ValidationError` subclasses.
         """
         raise ValidationError("must be %s" % self.humanized_name, value)
 
@@ -271,7 +271,7 @@ def adapts(**schemas):
 
     Example::
 
-        @adapts(a="number", body={"+field_ids": [int], "is_ok": bool})
+        @adapts(a="number", body={"+field_ids": [V.AdaptTo(int)], "is_ok": bool})
         def f(a, body):
             print (a, body.field_ids, body.is_ok)
 

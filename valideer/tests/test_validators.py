@@ -105,6 +105,9 @@ class TestValidator(unittest.TestCase):
         self._testValidation(V.Range("integer", 1, 2),
                              valid=[1, 2],
                              invalid=[-1, 0, 3])
+        self._testValidation(V.Range(min_value=1, max_value=2),
+                             valid=[1, 2],
+                             invalid=[-1, 0, 3])
 
     def test_homogeneous_sequence(self):
         for obj in V.HomogeneousSequence, V.HomogeneousSequence():
@@ -174,13 +177,40 @@ class TestValidator(unittest.TestCase):
                 "baz": "string"
             }]
         }
-        values = [{}, {"bar":True}, {"foo":3, "nested":[{}]}]
+        missing_properties = [{}, {"bar":True}, {"foo":3, "nested":[{}]}]
         for _ in xrange(3):
             self._testValidation(V.parse(schema, required_properties=True),
-                                 invalid=values)
+                                 invalid=missing_properties)
             self._testValidation(V.parse(schema, required_properties=False),
-                                 valid=values)
-            self.assertRaises(TypeError, V.parse, schema, required_properties=1)
+                                 valid=missing_properties)
+
+    def test_parsing_required_properties(self):
+        get_schema = lambda: {
+            "foo": V.Nullable("number"),
+            "?nested": [V.Nullable({
+                "baz": "string"
+            })]
+        }
+        valid = [{"foo":3, "nested":[None]}]
+        missing_properties = [{}, {"foo":3, "nested":[{}]}]
+        for _ in xrange(3):
+            with V.parsing(required_properties=False):
+                self._testValidation(get_schema(),
+                                     valid=valid + missing_properties)
+
+            with V.parsing(required_properties=True):
+                self._testValidation(get_schema(),
+                                     valid=valid, invalid=missing_properties)
+
+            # gotcha: calling parse() with required_properties=True is not
+            # equivalent to the above call because the V.Nullable() calls in
+            # get_schema have already called implicitly parse() without parameters.
+            if V.Object.REQUIRED_PROPERTIES:
+                self._testValidation(V.parse(get_schema(), required_properties=True),
+                                     invalid=[missing_properties[1]])
+            else:
+                self._testValidation(V.parse(get_schema(), required_properties=True),
+                                     valid=[missing_properties[1]])
 
     def test_adapt_missing_property(self):
         self._testValidation({"foo": "number", "?bar": V.Nullable("boolean", False)},
@@ -194,6 +224,16 @@ class TestValidator(unittest.TestCase):
                                     {"foo":-23., "bar":"yo"}],
                              invalid=[{"foo":23, "xyz":1},
                                       {"foo":-23., "bar":"yo", "xyz":1}]
+                             )
+
+    def test_remove_additional_properties(self):
+        self._testValidation(V.Object(required={"foo": "number"},
+                                      optional={"bar": "string"},
+                                      additional=V.Object.REMOVE),
+                             adapted=[({"foo":23}, {"foo":23}),
+                                      ({"foo":-23., "bar":"yo"}, {"foo":-23., "bar":"yo"}),
+                                      ({"foo":23, "xyz":1}, {"foo":23}),
+                                      ({"foo":-23., "bar":"yo", "xyz":1}, {"foo":-23., "bar":"yo"})]
                              )
 
     def test_additional_properties_schema(self):
@@ -219,10 +259,92 @@ class TestValidator(unittest.TestCase):
                                  valid=values)
             self._testValidation(V.parse(schema, additional_properties=False),
                                  invalid=values)
+            self._testValidation(V.parse(schema, additional_properties=V.Object.REMOVE),
+                                 adapted=[(values[0], {}),
+                                          (values[1], {"bar":True, "nested": [{}]})])
             self._testValidation(V.parse(schema, additional_properties="string"),
                                  valid=values,
                                  invalid=[{"x1": 42},
                                           {"bar":True, "nested": [{"x1": 42}]}])
+
+    def test_parsing_additional_properties(self):
+        get_schema = lambda: {
+            "?bar": "boolean",
+            "?nested": [V.Nullable({
+                "?baz": "integer"
+            })]
+        }
+        values = [{"x1": "yes"},
+                  {"bar":True, "nested": [{"x1": "yes"}]}]
+        for _ in xrange(3):
+            with V.parsing(additional_properties=True):
+                self._testValidation(get_schema(), valid=values)
+
+            with V.parsing(additional_properties=False):
+                self._testValidation(get_schema(), invalid=values)
+            # gotcha: calling parse() with additional_properties=False is not
+            # equivalent to the above call because the V.Nullable() calls in
+            # get_schema have already called implicitly parse() without parameters.
+            # The 'additional_properties' parameter effectively is applied at
+            # the top level dict only
+            self._testValidation(V.parse(get_schema(), additional_properties=False),
+                                 invalid=values[:1], valid=values[1:])
+
+            with V.parsing(additional_properties=V.Object.REMOVE):
+                self._testValidation(get_schema(),
+                                     adapted=[(values[0], {}),
+                                              (values[1], {"bar":True, "nested": [{}]})])
+            # same gotcha as above
+            self._testValidation(V.parse(get_schema(), additional_properties=V.Object.REMOVE),
+                                 adapted=[(values[0], {}),
+                                          (values[1], values[1])])
+
+            with V.parsing(additional_properties="string"):
+                self._testValidation(get_schema(),
+                                     valid=values,
+                                     invalid=[{"x1": 42},
+                                              {"bar":True, "nested": [{"x1": 42}]}])
+            # same gotcha as above
+            self._testValidation(V.parse(get_schema(), additional_properties="string"),
+                                 invalid=[{"x1": 42}],
+                                 valid=[{"bar":True, "nested": [{"x1": 42}]}])
+
+    def test_nested_parsing(self):
+        get_schema = lambda: {
+            "bar": "integer",
+            "?nested": [V.Nullable({
+                "baz": "number"
+            })]
+        }
+        values = [
+            {"bar": 1},
+            {"bar": 1, "nested":[{"baz": 0}, None]},
+            {"bar": 1, "xx":2},
+            {"bar": 1, "nested": [{"baz": 2.1, "xx": 1}]},
+            {},
+            {"bar": 1, "nested": [{}]},
+        ]
+
+        if V.Object.REQUIRED_PROPERTIES:
+            self._testValidation(get_schema(),
+                                valid=values[:4], invalid=values[4:])
+        else:
+            self._testValidation(get_schema(), valid=values)
+
+        with V.parsing(required_properties=True):
+            self._testValidation(get_schema(),
+                                valid=values[:4], invalid=values[4:])
+            with V.parsing(additional_properties=False):
+                self._testValidation(get_schema(),
+                                    valid=values[:2], invalid=values[2:])
+            self._testValidation(get_schema(),
+                                valid=values[:4], invalid=values[4:])
+
+        if V.Object.REQUIRED_PROPERTIES:
+            self._testValidation(get_schema(),
+                                valid=values[:4], invalid=values[4:])
+        else:
+            self._testValidation(get_schema(), valid=values)
 
     def test_enum(self):
         self._testValidation(V.Enum([1, 2, 3]),

@@ -1,3 +1,10 @@
+0.3.1
+=====
+- Added parsing() context manager.
+- Added ``Object.REMOVE`` sentinel for removing additional properties.
+- Made optional the schema parameter of the ``Range`` validator.
+- Fixed docstrings to be compatible with Sphinx.
+
 0.3
 ===
 - Exposed as top level functions the ``parse``, ``register`` and``register_factory``
@@ -17,8 +24,8 @@
 
 0.2
 ===
-- Better, customizable ValidationError messages.
-- Added Condition validator.
+- Better, customizable ``ValidationError`` messages.
+- Added ``Condition`` validator.
 
 0.1
 ===

@@ -81,10 +81,10 @@ class ChainOf(Validator):
 
 
 class Nullable(Validator):
-    """A validator that also accepts None.
+    """A validator that also accepts ``None``.
 
-    None is adapted to ``default``. ``default`` can also be a zero-argument
-    callable, in which None is adapted to ``default()``.
+    ``None`` is adapted to ``default``. ``default`` can also be a zero-argument
+    callable, in which case ``None`` is adapted to ``default()``.
     """
 
     def __init__(self, schema, default=None):
@@ -122,7 +122,7 @@ def _NullableFactory(obj):
 
 
 class NonNullable(Validator):
-    """A validator that does not accept None."""
+    """A validator that accepts anything but ``None``."""
 
     def __init__(self, schema=None):
         if schema is not None and not isinstance(schema, Validator):
@@ -232,8 +232,8 @@ class AdaptBy(Validator):
 
         :param adaptor: The callable ``f(value)`` to adapt values.
         :param traps: An exception or a tuple of exceptions to catch and wrap
-            into a ``ValidationError``. Any other raised exception is left to
-            propagate.
+            into a :py:exc:`ValidationError`. Any other raised exception is
+            left to propagate.
         """
         self._adaptor = adaptor
         self._traps = traps
@@ -255,8 +255,8 @@ class AdaptTo(AdaptBy):
 
         :param target_cls: The target class.
         :param traps: An exception or a tuple of exceptions to catch and wrap
-            into a ``ValidationError``. Any other raised exception is left to
-            propagate.
+            into a :py:exc:`ValidationError`. Any other raised exception is left
+            to propagate.
         :param exact: If False, instances of ``target_cls`` or a subclass are
             returned as is. If True, only instances of ``target_cls`` are
             returned as is.
@@ -302,7 +302,7 @@ class Type(Validator):
 
 @Type.register_factory
 def _TypeFactory(obj):
-    """Parse a python type (or "old-style" class) as a ``Type`` instance."""
+    """Parse a python type (or "old-style" class) as a :py:class:`Type` instance."""
     if inspect.isclass(obj):
         return Type(obj)
 
@@ -315,7 +315,10 @@ class Boolean(Type):
 
 
 class Integer(Type):
-    """A validator that accepts integers (numbers.Integral instances) but not bool."""
+    """
+    A validator that accepts integers (:py:class:`numbers.Integral` instances)
+    but not bool.
+    """
 
     name = "integer"
     accept_types = numbers.Integral
@@ -323,23 +326,25 @@ class Integer(Type):
 
 
 class Range(Validator):
-    """A validator that accepts only numbers in a certain range"""
+    """A validator that accepts values within in a certain range."""
 
-    def __init__(self, schema, min_value=None, max_value=None):
-        """Instantiate an Integer validator.
+    def __init__(self, schema=None, min_value=None, max_value=None):
+        """Instantiate a :py:class:`Range` validator.
 
+        :param schema: Optional schema or validator for the value.
         :param min_value: If not None, values less than ``min_value`` are
             invalid.
         :param max_value: If not None, values larger than ``max_value`` are
             invalid.
         """
         super(Range, self).__init__()
-        self._validator = parse(schema)
+        self._validator = parse(schema) if schema is not None else None
         self._min_value = min_value
         self._max_value = max_value
 
     def validate(self, value, adapt=True):
-        value = self._validator.validate(value, adapt=adapt)
+        if self._validator is not None:
+            value = self._validator.validate(value, adapt=adapt)
 
         if self._min_value is not None and value < self._min_value:
             raise ValidationError("must not be less than %d" %
@@ -360,21 +365,21 @@ class Number(Type):
 
 
 class Date(Type):
-    """A validator that accepts datetime.date values."""
+    """A validator that accepts :py:class:`datetime.date` values."""
 
     name = "date"
     accept_types = datetime.date
 
 
 class Datetime(Type):
-    """A validator that accepts datetime.datetime values."""
+    """A validator that accepts :py:class:`datetime.datetime` values."""
 
     name = "datetime"
     accept_types = datetime.datetime
 
 
 class Time(Type):
-    """A validator that accepts datetime.time values."""
+    """A validator that accepts :py:class:`datetime.time` values."""
 
     name = "time"
     accept_types = datetime.time
@@ -440,7 +445,7 @@ class Pattern(String):
 
 @Pattern.register_factory
 def _PatternFactory(obj):
-    """Parse a compiled regexp as a ``Pattern`` instance."""
+    """Parse a compiled regexp as a :py:class:`Pattern` instance."""
     if isinstance(obj, _SRE_Pattern):
         return Pattern(obj)
 
@@ -452,7 +457,7 @@ class HomogeneousSequence(Type):
     reject_types = basestring
 
     def __init__(self, item_schema=None, min_length=None, max_length=None):
-        """Instantiate a ``HomogeneousSequence`` validator.
+        """Instantiate a :py:class:`HomogeneousSequence` validator.
 
         :param item_schema: If not None, the schema of the items of the list.
         """
@@ -489,7 +494,8 @@ class HomogeneousSequence(Type):
 
 @HomogeneousSequence.register_factory
 def _HomogeneousSequenceFactory(obj):
-    """Parse an empty or 1-element ``[schema]`` list as a ``HomogeneousSequence`` 
+    """
+    Parse an empty or 1-element ``[schema]`` list as a :py:class:`HomogeneousSequence`
     validator.
     """
     if isinstance(obj, list) and len(obj) <= 1:
@@ -503,7 +509,7 @@ class HeterogeneousSequence(Type):
     reject_types = basestring
 
     def __init__(self, *item_schemas):
-        """Instantiate a ``HeterogeneousSequence`` validator.
+        """Instantiate a :py:class:`HeterogeneousSequence` validator.
 
         :param item_schemas: The schema of each element of the the tuple.
         """
@@ -529,7 +535,8 @@ class HeterogeneousSequence(Type):
 
 @HeterogeneousSequence.register_factory
 def _HeterogeneousSequenceFactory(obj):
-    """Parse a  ``(schema1, ..., schemaN)`` tuple as a ``HeterogeneousSequence`` 
+    """
+    Parse a  ``(schema1, ..., schemaN)`` tuple as a :py:class:`HeterogeneousSequence`
     validator.
     """
     if isinstance(obj, tuple):
@@ -537,12 +544,12 @@ def _HeterogeneousSequenceFactory(obj):
 
 
 class Mapping(Type):
-    """A validator that accepts dicts."""
+    """A validator that accepts mappings (:py:class:`collections.Mapping` instances)."""
 
     accept_types = collections.Mapping
 
     def __init__(self, key_schema=None, value_schema=None):
-        """Instantiate a dict validator.
+        """Instantiate a :py:class:`Mapping` validator.
 
         :param key_schema: If not None, the schema of the dict keys.
         :param value_schema: If not None, the schema of the dict values.
@@ -584,14 +591,15 @@ class Mapping(Type):
 class Object(Type):
     """A validator that accepts json-like objects.
 
-    A ``json-like object`` here is meant as a dict with specific properties 
-    (i.e. string keys).
+    A ``json-like object`` here is meant as a dict with a predefined set of
+    "properties", i.e. string keys.
     """
 
     accept_types = collections.Mapping
 
     REQUIRED_PROPERTIES = False
     ADDITIONAL_PROPERTIES = True
+    REMOVE = object()
 
     def __init__(self, optional={}, required={}, additional=None):
         """Instantiate an Object validator.
@@ -602,15 +610,18 @@ class Object(Type):
             ``{name: schema}`` dict.
         :param additional: The schema of all properties that are not explicitly
             defined as ``optional`` or ``required``. It can also be:
+
             - ``True`` to allow any value for additional properties.
             - ``False`` to disallow any additional properties.
+            - :py:attr:`REMOVE` to remove any additional properties from the
+              adapted object.
             - ``None`` to use the value of the ``ADDITIONAL_PROPERTIES`` class
               attribute.
         """
         super(Object, self).__init__()
         if additional is None:
             additional = self.ADDITIONAL_PROPERTIES
-        if not isinstance(additional, bool):
+        if not isinstance(additional, bool) and additional is not self.REMOVE:
             additional = parse(additional)
         self._named_validators = [
             (name, parse(schema))
@@ -626,22 +637,20 @@ class Object(Type):
         if missing_required:
             raise ValidationError("missing required properties: %s" %
                                   list(missing_required), value)
-        if adapt:
-            adapted = dict(value)
-            adapted.update(self._iter_validated_items(value, adapt))
-            return adapted
-        for _ in self._iter_validated_items(value, adapt):
-            pass
 
-    def _iter_validated_items(self, value, adapt):
+        result = dict(value) if adapt else None
         for name, validator in self._named_validators:
             if name in value:
                 try:
-                    yield (name, validator.validate(value[name], adapt))
+                    adapted = validator.validate(value[name], adapt)
+                    if result is not None:
+                        result[name] = adapted
                 except ValidationError as ex:
                     raise ex.add_context(name)
-            elif isinstance(validator, Nullable) and validator._default is not None:
-                yield (name, validator.default)
+            elif isinstance(validator, Nullable):
+                adapted = validator.default
+                if adapted is not None and result is not None:
+                    result[name] = adapted
 
         if self._additional != True:
             all_keys = self._all_keys
@@ -650,27 +659,38 @@ class Object(Type):
                 if self._additional == False:
                     raise ValidationError("additional properties: %s" %
                                           additional_properties, value)
-                additional_validate = self._additional.validate
-                for name in additional_properties:
-                    try:
-                        yield (name, additional_validate(value[name], adapt))
-                    except ValidationError as ex:
-                        raise ex.add_context(name)
+                elif self._additional is self.REMOVE:
+                    if result is not None:
+                        for name in additional_properties:
+                            del result[name]
+                else:
+                    additional_validate = self._additional.validate
+                    for name in additional_properties:
+                        try:
+                            adapted = additional_validate(value[name], adapt)
+                            if result is not None:
+                                result[name] = adapted
+                        except ValidationError as ex:
+                            raise ex.add_context(name)
+
+        return result
 
 
 @Object.register_factory
 def _ObjectFactory(obj, required_properties=None, additional_properties=None):
-    """Parse a python ``{name: schema}`` dict as an ``Object`` instance.
+    """Parse a python ``{name: schema}`` dict as an :py:class:`Object` instance.
 
     - A property name prepended by "+" is required
     - A property name prepended by "?" is optional
     - Any other property is:
-      - required if ``required_properties`` is True or ``required_properties``
-        is None and ``Object.REQUIRED_PROPERTIES``
-      - optional if ``required_properties`` is False or ``required_properties``
-        is None and ``not Object.REQUIRED_PROPERTIES``
+      - required if ``required_properties`` is True
+        or
+        ``required_properties`` is None and :py:attr:`Object.REQUIRED_PROPERTIES`
+      - optional if ``required_properties`` is False
+        or
+        ``required_properties`` is None and ``not`` :py:attr:`Object.REQUIRED_PROPERTIES`
 
-    :param additional_properties: The ``additional`` parameter to ``Object()``.
+    :param additional_properties: The ``additional`` parameter to :py:class:`Object`.
     """
     if isinstance(obj, dict):
         if required_properties is None:

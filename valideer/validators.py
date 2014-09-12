@@ -86,11 +86,11 @@ class Nullable(Validator):
     ``None`` is adapted to ``default``. ``default`` can also be a zero-argument
     callable, in which case ``None`` is adapted to ``default()``.
 
-    The :py:class:`Object` validator sets the value of missing keys with
+    The :py:class:`Object` validator sets the value of missing properties with
     :py:class:`Nullable` schema to the respective ``default`` if and only if
     the ``default`` is not ``None``. If a different behaviour is desired (e.g.
     to always set the value to ``default`` even when it is ``None``), you can
-    subclass :py:class:`Nullable`` and override the :py:meth:`default_for_object`
+    subclass :py:class:`Nullable`` and override the :py:meth:`default_object_property`
     property.
     """
 
@@ -117,7 +117,7 @@ class Nullable(Validator):
         return default if not callable(default) else default()
 
     @property
-    def default_for_object(self):
+    def default_object_property(self):
         default = self.default
         return default if default is not None else self._UNDEFINED
 
@@ -660,7 +660,7 @@ class Object(Type):
                 except ValidationError as ex:
                     raise ex.add_context(name)
             elif result is not None and isinstance(validator, Nullable):
-                default = validator.default_for_object
+                default = validator.default_object_property
                 if default is not Nullable._UNDEFINED:
                     result[name] = default
 

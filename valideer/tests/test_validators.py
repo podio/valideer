@@ -381,9 +381,9 @@ class TestValidator(unittest.TestCase):
                              adapted=[(None, -1), (0, 0)],
                              invalid=[1.1, True, False])
 
-    def test_nullable_with_default_for_object(self):
+    def test_nullable_with_default_object_property(self):
         class ObjectNullable(V.Nullable):
-            default_for_object = property(lambda self: self.default)
+            default_object_property = property(lambda self: self.default)
 
         regular_nullables = [
             "?integer",

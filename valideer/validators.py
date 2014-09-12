@@ -85,7 +85,16 @@ class Nullable(Validator):
 
     ``None`` is adapted to ``default``. ``default`` can also be a zero-argument
     callable, in which case ``None`` is adapted to ``default()``.
+
+    The :py:class:`Object` validator sets the value of missing keys with
+    :py:class:`Nullable` schema to the respective ``default`` if and only if
+    the ``default`` is not ``None``. If a different behaviour is desired (e.g.
+    to always set the value to ``default`` even when it is ``None``), you can
+    subclass :py:class:`Nullable`` and override the :py:meth:`default_for_object`
+    property.
     """
+
+    _UNDEFINED = object()
 
     def __init__(self, schema, default=None):
         if isinstance(schema, Validator):
@@ -104,10 +113,13 @@ class Nullable(Validator):
 
     @property
     def default(self):
-        if callable(self._default):
-            return self._default()
-        else:
-            return self._default
+        default = self._default
+        return default if not callable(default) else default()
+
+    @property
+    def default_for_object(self):
+        default = self.default
+        return default if default is not None else self._UNDEFINED
 
     @property
     def humanized_name(self):
@@ -647,10 +659,10 @@ class Object(Type):
                         result[name] = adapted
                 except ValidationError as ex:
                     raise ex.add_context(name)
-            elif isinstance(validator, Nullable):
-                adapted = validator.default
-                if adapted is not None and result is not None:
-                    result[name] = adapted
+            elif result is not None and isinstance(validator, Nullable):
+                default = validator.default_for_object
+                if default is not Nullable._UNDEFINED:
+                    result[name] = default
 
         if self._additional != True:
             all_keys = self._all_keys

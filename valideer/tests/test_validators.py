@@ -381,6 +381,31 @@ class TestValidator(unittest.TestCase):
                              adapted=[(None, -1), (0, 0)],
                              invalid=[1.1, True, False])
 
+    def test_nullable_with_default_object_property(self):
+        class ObjectNullable(V.Nullable):
+            default_object_property = property(lambda self: self.default)
+
+        regular_nullables = [
+            "?integer",
+            V.Nullable("integer"),
+            V.Nullable("integer", None),
+            V.Nullable("integer", default=None),
+            V.Nullable("integer", lambda: None),
+            V.Nullable("integer", default=lambda: None)
+        ]
+        for obj in regular_nullables:
+            self._testValidation({"?foo": obj}, adapted=[({}, {})])
+
+        object_nullables = [
+            ObjectNullable("integer"),
+            ObjectNullable("integer", None),
+            ObjectNullable("integer", default=None),
+            ObjectNullable("integer", lambda: None),
+            ObjectNullable("integer", default=lambda: None),
+        ]
+        for obj in object_nullables:
+            self._testValidation({"?foo": obj}, adapted=[({}, {"foo": None})])
+
     def test_nonnullable(self):
         for obj in V.NonNullable, V.NonNullable():
             self._testValidation(obj,

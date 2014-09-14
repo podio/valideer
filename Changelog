@@ -1,6 +1,10 @@
+0.3.2
+=====
+- Added ``Nullable.default_object_property``.
+
 0.3.1
 =====
-- Added parsing() context manager.
+- Added ``parsing()`` context manager.
 - Added ``Object.REMOVE`` sentinel for removing additional properties.
 - Made optional the schema parameter of the ``Range`` validator.
 - Fixed docstrings to be compatible with Sphinx.

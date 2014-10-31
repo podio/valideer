@@ -2,6 +2,7 @@ import inspect
 from contextlib import contextmanager
 from threading import RLock
 from decorator import decorator
+from .compat import with_metaclass
 
 __all__ = [
     "ValidationError", "SchemaError", "Validator", "accepts", "adapts",
@@ -12,6 +13,7 @@ __all__ = [
 _NAMED_VALIDATORS = {}
 _VALIDATOR_FACTORIES = []
 _VALIDATOR_FACTORIES_LOCK = RLock()
+
 
 class SchemaError(Exception):
     """An object cannot be parsed as a validator."""
@@ -151,7 +153,8 @@ def parsing(required_properties=None, additional_properties=None):
         - ``None`` to use the value of the
           :py:attr:`~valideer.validators.Object.ADDITIONAL_PROPERTIES` attribute.
     """
-    from .validators import Object, _ObjectFactory
+
+    from .validators import Object
     with _VALIDATOR_FACTORIES_LOCK:
         if required_properties is not None:
             old_required_properties = Object.REQUIRED_PROPERTIES
@@ -186,6 +189,16 @@ def register_factory(func):
     return func
 
 
+class _MetaValidator(type):
+    def __new__(mcs, name, bases, attrs):  # @NoSelf
+        validator_type = type.__new__(mcs, name, bases, attrs)
+        validator_name = attrs.get("name")
+        if validator_name is not None:
+            _NAMED_VALIDATORS[validator_name] = validator_type
+        return validator_type
+
+
+@with_metaclass(_MetaValidator)
 class Validator(object):
     """Abstract base class of all validators.
 
@@ -193,14 +206,6 @@ class Validator(object):
     define a :py:attr:`name` attribute (typically a string) that can be used to specify
     a validator in :py:meth:`parse` instead of instantiating it explicitly.
     """
-
-    class __metaclass__(type):
-        def __new__(mcs, name, bases, attrs): #@NoSelf
-            validator_type = type.__new__(mcs, name, bases, attrs)
-            validator_name = attrs.get("name")
-            if validator_name is not None:
-                _NAMED_VALIDATORS[validator_name] = validator_type
-            return validator_type
 
     name = None
 
@@ -259,6 +264,7 @@ def accepts(**schemas):
     :param schemas: The schema for validating a given parameter.
     """
     validate = parse(schemas).validate
+
     @decorator
     def validating(func, *args, **kwargs):
         validate(inspect.getcallargs(func, *args, **kwargs), adapt=False)
@@ -290,7 +296,7 @@ def adapts(**schemas):
 
         adapted_varargs = adapted.pop(argspec.varargs, ())
         adapted_keywords = adapted.pop(argspec.keywords, {})
-        if not adapted_varargs: # keywords only
+        if not adapted_varargs:  # keywords only
             if adapted_keywords:
                 adapted.update(adapted_keywords)
             return func(**adapted)
@@ -304,13 +310,16 @@ def adapts(**schemas):
 
 _TYPE_NAMES = {}
 
+
 def set_name_for_types(name, *types):
     """Associate one or more types with an alternative human-friendly name."""
     for t in types:
         _TYPE_NAMES[t] = name
 
+
 def reset_type_names():
     _TYPE_NAMES.clear()
+
 
 def get_type_name(type):
     return _TYPE_NAMES.get(type) or type.__name__

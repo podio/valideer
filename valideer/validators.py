@@ -1,5 +1,5 @@
 from .base import Validator, ValidationError, parse, get_type_name
-from itertools import izip
+from .compat import string_types, izip, imap, iteritems
 import collections
 import datetime
 import inspect
@@ -24,7 +24,7 @@ class AnyOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = map(parse, schemas)
+        self._validators = list(imap(parse, schemas))
 
     def validate(self, value, adapt=True):
         msgs = []
@@ -48,7 +48,7 @@ class AllOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = map(parse, schemas)
+        self._validators = list(imap(parse, schemas))
 
     def validate(self, value, adapt=True):
         result = value
@@ -68,7 +68,7 @@ class ChainOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = map(parse, schemas)
+        self._validators = list(imap(parse, schemas))
 
     def validate(self, value, adapt=True):
         for validator in self._validators:
@@ -129,7 +129,7 @@ class Nullable(Validator):
 @Nullable.register_factory
 def _NullableFactory(obj):
     """Parse a string starting with "?" as a Nullable validator."""
-    if isinstance(obj, basestring) and obj.startswith("?"):
+    if isinstance(obj, string_types) and obj.startswith("?"):
         return Nullable(obj[1:])
 
 
@@ -160,7 +160,7 @@ class NonNullable(Validator):
 @NonNullable.register_factory
 def _NonNullableFactory(obj):
     """Parse a string starting with "+" as an NonNullable validator."""
-    if isinstance(obj, basestring) and obj.startswith("+"):
+    if isinstance(obj, string_types) and obj.startswith("+"):
         return NonNullable(obj[1:])
 
 
@@ -179,20 +179,20 @@ class Enum(Validator):
             values = self.values
         try:
             self.values = set(values)
-        except TypeError: # unhashable
+        except TypeError:  # unhashable
             self.values = list(values)
 
     def validate(self, value, adapt=True):
         try:
             if value in self.values:
                 return value
-        except TypeError: # unhashable
+        except TypeError:  # unhashable
             pass
         self.error(value)
 
     @property
     def humanized_name(self):
-        return "one of {%s}" % ", ".join(map(repr, self.values))
+        return "one of {%s}" % ", ".join(list(imap(repr, self.values)))
 
 
 class Condition(Validator):
@@ -255,7 +255,7 @@ class AdaptBy(Validator):
             return self._adaptor(value)
         try:
             return self._adaptor(value)
-        except self._traps, ex:
+        except self._traps as ex:
             raise ValidationError(str(ex), value)
 
 
@@ -401,7 +401,7 @@ class String(Type):
     """A validator that accepts string values."""
 
     name = "string"
-    accept_types = basestring
+    accept_types = string_types
 
     def __init__(self, min_length=None, max_length=None):
         """Instantiate a String validator.
@@ -427,6 +427,7 @@ class String(Type):
 
 
 _SRE_Pattern = type(re.compile(""))
+
 
 class Pattern(String):
     """A validator that accepts strings that match a given regular expression.
@@ -466,7 +467,7 @@ class HomogeneousSequence(Type):
     """A validator that accepts homogeneous, non-fixed size sequences."""
 
     accept_types = collections.Sequence
-    reject_types = basestring
+    reject_types = string_types
 
     def __init__(self, item_schema=None, min_length=None, max_length=None):
         """Instantiate a :py:class:`HomogeneousSequence` validator.
@@ -504,6 +505,7 @@ class HomogeneousSequence(Type):
             except ValidationError as ex:
                 raise ex.add_context(i)
 
+
 @HomogeneousSequence.register_factory
 def _HomogeneousSequenceFactory(obj):
     """
@@ -518,7 +520,7 @@ class HeterogeneousSequence(Type):
     """A validator that accepts heterogeneous, fixed size sequences."""
 
     accept_types = collections.Sequence
-    reject_types = basestring
+    reject_types = string_types
 
     def __init__(self, *item_schemas):
         """Instantiate a :py:class:`HeterogeneousSequence` validator.
@@ -526,7 +528,7 @@ class HeterogeneousSequence(Type):
         :param item_schemas: The schema of each element of the the tuple.
         """
         super(HeterogeneousSequence, self).__init__()
-        self._item_validators = map(parse, item_schemas)
+        self._item_validators = list(imap(parse, item_schemas))
 
     def validate(self, value, adapt=True):
         super(HeterogeneousSequence, self).validate(value)
@@ -544,6 +546,7 @@ class HeterogeneousSequence(Type):
                 yield validator.validate(item, adapt)
             except ValidationError as ex:
                 raise ex.add_context(i)
+
 
 @HeterogeneousSequence.register_factory
 def _HeterogeneousSequenceFactory(obj):
@@ -589,7 +592,7 @@ class Mapping(Type):
             validate_key = self._key_validator.validate
         if self._value_validator is not None:
             validate_value = self._value_validator.validate
-        for k, v in value.iteritems():
+        for k, v in iteritems(value):
             if validate_value is not None:
                 try:
                     v = validate_value(v, adapt)
@@ -637,7 +640,7 @@ class Object(Type):
             additional = parse(additional)
         self._named_validators = [
             (name, parse(schema))
-            for name, schema in dict(optional, **required).iteritems()
+            for name, schema in iteritems(dict(optional, **required))
         ]
         self._required_keys = set(required)
         self._all_keys = set(name for name, _ in self._named_validators)
@@ -664,11 +667,11 @@ class Object(Type):
                 if default is not Nullable._UNDEFINED:
                     result[name] = default
 
-        if self._additional != True:
+        if self._additional is not True:
             all_keys = self._all_keys
             additional_properties = [k for k in value if k not in all_keys]
             if additional_properties:
-                if self._additional == False:
+                if self._additional is False:
                     raise ValidationError("additional properties: %s" %
                                           additional_properties, value)
                 elif self._additional is self.REMOVE:
@@ -708,7 +711,7 @@ def _ObjectFactory(obj, required_properties=None, additional_properties=None):
         if required_properties is None:
             required_properties = Object.REQUIRED_PROPERTIES
         optional, required = {}, {}
-        for key, value in obj.iteritems():
+        for key, value in iteritems(obj):
             if key.startswith("+"):
                 required[key[1:]] = value
             elif key.startswith("?"):
@@ -723,7 +726,7 @@ def _ObjectFactory(obj, required_properties=None, additional_properties=None):
 def _format_types(types):
     if inspect.isclass(types):
         types = (types,)
-    names = map(get_type_name, types)
+    names = list(imap(get_type_name, types))
     s = names[-1]
     if len(names) > 1:
         s = ", ".join(names[:-1]) + " or " + s

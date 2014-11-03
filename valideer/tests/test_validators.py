@@ -6,11 +6,17 @@ import json
 import re
 import unittest
 import valideer as V
+from valideer.compat import long, unicode, xrange, string_types, int_types
 
 
 class Fraction(V.Type):
     name = "fraction"
     accept_types = (float, complex, Decimal)
+
+
+class Date(V.Type):
+    accept_types = (date, datetime)
+
 
 class Gender(V.Enum):
     name = "gender"
@@ -115,8 +121,8 @@ class TestValidator(unittest.TestCase):
                                  valid=[[], [1], (1, 2), [1, (2, 3), 4]],
                                  invalid=[1, 1.1, "foo", u"bar", {}, False, True])
         self._testValidation(["number"],
-                             valid=[[], [1, 2.1, 3L], (1, 4L, 6)],
-                             invalid=[[1, 2.1, 3L, u"x"]])
+                             valid=[[], [1, 2.1, long(3)], (1, long(4), 6)],
+                             invalid=[[1, 2.1, long(3), u"x"]])
 
     def test_heterogeneous_sequence(self):
         for obj in V.HeterogeneousSequence, V.HeterogeneousSequence():
@@ -144,9 +150,9 @@ class TestValidator(unittest.TestCase):
                                  invalid=[1, 1.1, "foo", u"bar", [], False, True])
         self._testValidation(V.Mapping("string", "number"),
                              valid=[{"foo": 3},
-                                    {"foo": 3, u"bar":-2.1, "baz":Decimal("12.3")}],
-                             invalid=[{"foo": 3, ("bar",):-2.1},
-                                      {"foo": 3, "bar":"2.1"}])
+                                    {"foo": 3, u"bar": -2.1, "baz": Decimal("12.3")}],
+                             invalid=[{"foo": 3, ("bar",): -2.1},
+                                      {"foo": 3, "bar": "2.1"}])
 
     def test_object(self):
         for obj in V.Object, V.Object():
@@ -160,14 +166,14 @@ class TestValidator(unittest.TestCase):
                                       {"foo": "baz", "bar": 2.3}])
 
     def test_required_properties_global(self):
-        self._testValidation({"foo": "number", "?bar": "boolean", "baz":"string"},
-                             valid=[{"foo":-23., "baz":"yo"}],
+        self._testValidation({"foo": "number", "?bar": "boolean", "baz": "string"},
+                             valid=[{"foo": -23., "baz": "yo"}],
                              invalid=[{},
-                                      {"bar":True},
-                                      {"baz":"yo"},
-                                      {"foo":3},
-                                      {"bar":False, "baz":"yo"},
-                                      {"bar":True, "foo":3.1}])
+                                      {"bar": True},
+                                      {"baz": "yo"},
+                                      {"foo": 3},
+                                      {"bar": False, "baz": "yo"},
+                                      {"bar": True, "foo": 3.1}])
 
     def test_required_properties_parse_parameter(self):
         schema = {
@@ -177,7 +183,7 @@ class TestValidator(unittest.TestCase):
                 "baz": "string"
             }]
         }
-        missing_properties = [{}, {"bar":True}, {"foo":3, "nested":[{}]}]
+        missing_properties = [{}, {"bar": True}, {"foo": 3, "nested": [{}]}]
         for _ in xrange(3):
             self._testValidation(V.parse(schema, required_properties=True),
                                  invalid=missing_properties)
@@ -191,8 +197,8 @@ class TestValidator(unittest.TestCase):
                 "baz": "string"
             })]
         }
-        valid = [{"foo":3, "nested":[None]}]
-        missing_properties = [{}, {"foo":3, "nested":[{}]}]
+        valid = [{"foo": 3, "nested": [None]}]
+        missing_properties = [{}, {"foo": 3, "nested": [{}]}]
         for _ in xrange(3):
             with V.parsing(required_properties=False):
                 self._testValidation(get_schema(),
@@ -214,35 +220,35 @@ class TestValidator(unittest.TestCase):
 
     def test_adapt_missing_property(self):
         self._testValidation({"foo": "number", "?bar": V.Nullable("boolean", False)},
-                             adapted=[({"foo":-12}, {"foo":-12, "bar":False})])
+                             adapted=[({"foo": -12}, {"foo": -12, "bar": False})])
 
     def test_no_additional_properties(self):
         self._testValidation(V.Object(required={"foo": "number"},
                                       optional={"bar": "string"},
                                       additional=False),
-                             valid=[{"foo":23},
-                                    {"foo":-23., "bar":"yo"}],
-                             invalid=[{"foo":23, "xyz":1},
-                                      {"foo":-23., "bar":"yo", "xyz":1}]
+                             valid=[{"foo": 23},
+                                    {"foo": -23., "bar": "yo"}],
+                             invalid=[{"foo": 23, "xyz": 1},
+                                      {"foo": -23., "bar": "yo", "xyz": 1}]
                              )
 
     def test_remove_additional_properties(self):
         self._testValidation(V.Object(required={"foo": "number"},
                                       optional={"bar": "string"},
                                       additional=V.Object.REMOVE),
-                             adapted=[({"foo":23}, {"foo":23}),
-                                      ({"foo":-23., "bar":"yo"}, {"foo":-23., "bar":"yo"}),
-                                      ({"foo":23, "xyz":1}, {"foo":23}),
-                                      ({"foo":-23., "bar":"yo", "xyz":1}, {"foo":-23., "bar":"yo"})]
+                             adapted=[({"foo": 23}, {"foo": 23}),
+                                      ({"foo": -23., "bar": "yo"}, {"foo": -23., "bar": "yo"}),
+                                      ({"foo": 23, "xyz": 1}, {"foo": 23}),
+                                      ({"foo": -23., "bar": "yo", "xyz": 1}, {"foo": -23., "bar": "yo"})]
                              )
 
     def test_additional_properties_schema(self):
         self._testValidation(V.Object(required={"foo": "number"},
                                       optional={"bar": "string"},
                                       additional="boolean"),
-                             valid=[{"foo":23, "bar":"yo", "x1":True, "x2":False}],
-                             invalid=[{"foo":23, "x1":1},
-                                      {"foo":-23., "bar":"yo", "x1":True, "x2":0}]
+                             valid=[{"foo": 23, "bar": "yo", "x1": True, "x2": False}],
+                             invalid=[{"foo": 23, "x1": 1},
+                                      {"foo": -23., "bar": "yo", "x1": True, "x2": 0}]
                              )
 
     def test_additional_properties_parse_parameter(self):
@@ -253,7 +259,7 @@ class TestValidator(unittest.TestCase):
             }]
         }
         values = [{"x1": "yes"},
-                  {"bar":True, "nested": [{"x1": "yes"}]}]
+                  {"bar": True, "nested": [{"x1": "yes"}]}]
         for _ in xrange(3):
             self._testValidation(V.parse(schema, additional_properties=True),
                                  valid=values)
@@ -261,11 +267,11 @@ class TestValidator(unittest.TestCase):
                                  invalid=values)
             self._testValidation(V.parse(schema, additional_properties=V.Object.REMOVE),
                                  adapted=[(values[0], {}),
-                                          (values[1], {"bar":True, "nested": [{}]})])
+                                          (values[1], {"bar": True, "nested": [{}]})])
             self._testValidation(V.parse(schema, additional_properties="string"),
                                  valid=values,
                                  invalid=[{"x1": 42},
-                                          {"bar":True, "nested": [{"x1": 42}]}])
+                                          {"bar": True, "nested": [{"x1": 42}]}])
 
     def test_parsing_additional_properties(self):
         get_schema = lambda: {
@@ -275,7 +281,7 @@ class TestValidator(unittest.TestCase):
             })]
         }
         values = [{"x1": "yes"},
-                  {"bar":True, "nested": [{"x1": "yes"}]}]
+                  {"bar": True, "nested": [{"x1": "yes"}]}]
         for _ in xrange(3):
             with V.parsing(additional_properties=True):
                 self._testValidation(get_schema(), valid=values)
@@ -293,7 +299,7 @@ class TestValidator(unittest.TestCase):
             with V.parsing(additional_properties=V.Object.REMOVE):
                 self._testValidation(get_schema(),
                                      adapted=[(values[0], {}),
-                                              (values[1], {"bar":True, "nested": [{}]})])
+                                              (values[1], {"bar": True, "nested": [{}]})])
             # same gotcha as above
             self._testValidation(V.parse(get_schema(), additional_properties=V.Object.REMOVE),
                                  adapted=[(values[0], {}),
@@ -303,11 +309,11 @@ class TestValidator(unittest.TestCase):
                 self._testValidation(get_schema(),
                                      valid=values,
                                      invalid=[{"x1": 42},
-                                              {"bar":True, "nested": [{"x1": 42}]}])
+                                              {"bar": True, "nested": [{"x1": 42}]}])
             # same gotcha as above
             self._testValidation(V.parse(get_schema(), additional_properties="string"),
                                  invalid=[{"x1": 42}],
-                                 valid=[{"bar":True, "nested": [{"x1": 42}]}])
+                                 valid=[{"bar": True, "nested": [{"x1": 42}]}])
 
     def test_nested_parsing(self):
         get_schema = lambda: {
@@ -318,8 +324,8 @@ class TestValidator(unittest.TestCase):
         }
         values = [
             {"bar": 1},
-            {"bar": 1, "nested":[{"baz": 0}, None]},
-            {"bar": 1, "xx":2},
+            {"bar": 1, "nested": [{"baz": 0}, None]},
+            {"bar": 1, "xx": 2},
             {"bar": 1, "nested": [{"baz": 2.1, "xx": 1}]},
             {},
             {"bar": 1, "nested": [{}]},
@@ -327,22 +333,22 @@ class TestValidator(unittest.TestCase):
 
         if V.Object.REQUIRED_PROPERTIES:
             self._testValidation(get_schema(),
-                                valid=values[:4], invalid=values[4:])
+                                 valid=values[:4], invalid=values[4:])
         else:
             self._testValidation(get_schema(), valid=values)
 
         with V.parsing(required_properties=True):
             self._testValidation(get_schema(),
-                                valid=values[:4], invalid=values[4:])
+                                 valid=values[:4], invalid=values[4:])
             with V.parsing(additional_properties=False):
                 self._testValidation(get_schema(),
-                                    valid=values[:2], invalid=values[2:])
+                                     valid=values[:2], invalid=values[2:])
             self._testValidation(get_schema(),
-                                valid=values[:4], invalid=values[4:])
+                                 valid=values[:4], invalid=values[4:])
 
         if V.Object.REQUIRED_PROPERTIES:
             self._testValidation(get_schema(),
-                                valid=values[:4], invalid=values[4:])
+                                 valid=values[:4], invalid=values[4:])
         else:
             self._testValidation(get_schema(), valid=values)
 
@@ -353,10 +359,10 @@ class TestValidator(unittest.TestCase):
                              valid=["foo", "bar"], invalid=["", "fooabar", ["foo"]])
         self._testValidation(V.Enum([True]),
                              valid=[True], invalid=[False, [True]])
-        self._testValidation(V.Enum([{"foo" : u"bar"}]),
-                             valid=[{u"foo" : "bar"}])
-        self._testValidation(V.Enum([{"foo" : u"quux"}]),
-                             invalid=[{u"foo" : u"bar"}])
+        self._testValidation(V.Enum([{"foo": u"bar"}]),
+                             valid=[{u"foo": "bar"}])
+        self._testValidation(V.Enum([{"foo": u"quux"}]),
+                             invalid=[{u"foo": u"bar"}])
 
     def test_enum_class(self):
         for obj in "gender", Gender, Gender():
@@ -377,7 +383,7 @@ class TestValidator(unittest.TestCase):
         self._testValidation(V.Nullable("integer", -1),
                              adapted=[(None, -1), (0, 0)],
                              invalid=[1.1, True, False])
-        self._testValidation(V.Nullable("integer", lambda:-1),
+        self._testValidation(V.Nullable("integer", lambda: -1),
                              adapted=[(None, -1), (0, 0)],
                              invalid=[1.1, True, False])
 
@@ -414,52 +420,56 @@ class TestValidator(unittest.TestCase):
         for obj in "+integer", V.NonNullable(V.Integer()), V.NonNullable("?integer"):
             self._testValidation(obj,
                                  invalid=[None, False],
-                                 valid=[0, 2L])
+                                 valid=[0, long(2)])
 
     def test_anyof(self):
-        self._testValidation(V.AnyOf("integer", {"foo" : "integer"}),
-                             valid=[1, {"foo" : 1}],
-                             invalid=[{"foo" : 1.1}])
+        self._testValidation(V.AnyOf("integer", {"foo": "integer"}),
+                             valid=[1, {"foo": 1}],
+                             invalid=[{"foo": 1.1}])
 
     def test_allof(self):
         self._testValidation(V.AllOf({"id": "integer"}, V.Mapping("string", "number")),
                              valid=[{"id": 3}, {"id": 3, "bar": 4.5}],
-                             invalid=[{"id" : 1.1, "bar":4.5},
-                                      {"id" : 3, "bar": True},
-                                      {"id" : 3, 12: 4.5}])
+                             invalid=[{"id": 1.1, "bar": 4.5},
+                                      {"id": 3, "bar": True},
+                                      {"id": 3, 12: 4.5}])
 
         self._testValidation(V.AllOf("number",
                                      lambda x: x > 0,
-                                     V.AdaptBy(datetime.fromtimestamp)),
-                            adapted=[(1373475820, datetime(2013, 7, 10, 20, 3, 40))],
-                            invalid=["1373475820", -1373475820])
+                                     V.AdaptBy(datetime.utcfromtimestamp)),
+                             adapted=[(1373475820, datetime(2013, 7, 10, 17, 3, 40))],
+                             invalid=["1373475820", -1373475820])
 
     def test_chainof(self):
         self._testValidation(V.ChainOf(V.AdaptTo(int),
                                        V.Condition(lambda x: x > 0),
-                                       V.AdaptBy(datetime.fromtimestamp)),
-                            adapted=[(1373475820, datetime(2013, 7, 10, 20, 3, 40)),
-                                     ("1373475820", datetime(2013, 7, 10, 20, 3, 40))],
-                            invalid=["nan", -1373475820])
+                                       V.AdaptBy(datetime.utcfromtimestamp)),
+                             adapted=[(1373475820, datetime(2013, 7, 10, 17, 3, 40)),
+                                      ("1373475820", datetime(2013, 7, 10, 17, 3, 40))],
+                             invalid=["nan", -1373475820])
 
     def test_condition(self):
-        def is_odd(n): return n % 2 == 1
+        def is_odd(n):
+            return n % 2 == 1
         is_even = lambda n: n % 2 == 0
 
         class C(object):
-            def is_odd_method(self, n): return is_odd(n)
-            def is_even_method(self, n): return is_even(n)
+            def is_odd_method(self, n):
+                return is_odd(n)
+
+            def is_even_method(self, n):
+                return is_even(n)
             is_odd_static = staticmethod(is_odd)
             is_even_static = staticmethod(is_even)
 
         for obj in is_odd, C().is_odd_method, C.is_odd_static:
             self._testValidation(obj,
-                                 valid=[1, 3L, -11, 9.0, True],
+                                 valid=[1, long(3), -11, 9.0, True],
                                  invalid=[6, 2.1, False, "1", []])
 
         for obj in is_even, C().is_even_method, C.is_even_static:
             self._testValidation(obj,
-                                 valid=[6, 2L, -42, 4.0, 0, 0.0, False],
+                                 valid=[6, long(2), -42, 4.0, 0, 0.0, False],
                                  invalid=[1, 2.1, True, "2", []])
 
         self._testValidation(str.isalnum,
@@ -468,7 +478,6 @@ class TestValidator(unittest.TestCase):
 
         self.assertRaises(TypeError, V.Condition, C)
         self.assertRaises(TypeError, V.Condition(is_even, traps=()).validate, [2, 4])
-
 
     def test_adapt_by(self):
         self._testValidation(V.AdaptBy(hex, traps=TypeError),
@@ -505,27 +514,27 @@ class TestValidator(unittest.TestCase):
 
     def test_accepts(self):
         @V.accepts(a="fraction", b=int, body={"+field_ids": ["integer"],
-                                               "?is_ok": bool,
-                                               "?sex": "gender"})
+                                              "?is_ok": bool,
+                                              "?sex": "gender"})
         def f(a, b=1, **body):
             pass
 
         valid = [
             partial(f, 2.0, field_ids=[]),
             partial(f, Decimal(1), b=5, field_ids=[1], is_ok=True),
-            partial(f, a=3j, b= -1, field_ids=[1L, 2, 5L], sex="male"),
-            partial(f, 5 + 3j, 0, field_ids=[-12L, 0, 0L], is_ok=False, sex="female"),
+            partial(f, a=3j, b=-1, field_ids=[long(1), 2, long(5)], sex="male"),
+            partial(f, 5 + 3j, 0, field_ids=[long(-12), 0, long(0)], is_ok=False, sex="female"),
             partial(f, 2.0, field_ids=[], additional="extra param allowed"),
         ]
 
         invalid = [
-            partial(f, 1), # 'a' is not a fraction
-            partial(f, 1.0), # missing 'field_ids' from body
-            partial(f, 1.0, b=4.1, field_ids=[]), # 'b' is not int
-            partial(f, 1.0, b=2, field_ids=3), # 'field_ids' is not a list
-            partial(f, 1.0, b=1, field_ids=[3.0]), # 'field_ids[0]' is not a integer
-            partial(f, 1.0, b=1, field_ids=[], is_ok=1), # 'is_ok' is not bool
-            partial(f, 1.0, b=1, field_ids=[], sex="m"), # 'sex' is not a gender
+            partial(f, 1),  # 'a' is not a fraction
+            partial(f, 1.0),  # missing 'field_ids' from body
+            partial(f, 1.0, b=4.1, field_ids=[]),  # 'b' is not int
+            partial(f, 1.0, b=2, field_ids=3),  # 'field_ids' is not a list
+            partial(f, 1.0, b=1, field_ids=[3.0]),  # 'field_ids[0]' is not a integer
+            partial(f, 1.0, b=1, field_ids=[], is_ok=1),  # 'is_ok' is not bool
+            partial(f, 1.0, b=1, field_ids=[], sex="m"),  # 'sex' is not a gender
         ]
 
         for fcall in valid:
@@ -535,12 +544,12 @@ class TestValidator(unittest.TestCase):
 
     def test_adapts(self):
         @V.adapts(body={"+field_ids": ["integer"],
-                         "?scores": V.Mapping("string", float),
-                         "?users": [{
+                        "?scores": V.Mapping("string", float),
+                        "?users": [{
                             "+name": ("+string", "+string"),
                             "?sex": "gender",
                             "?active": V.Nullable("boolean", True),
-                         }]})
+                        }]})
         def f(body):
             return body
 
@@ -586,8 +595,8 @@ class TestValidator(unittest.TestCase):
 
     def test_adapts_varargs(self):
         @V.adapts(a="integer",
-                   b="number",
-                   nums=["number"])
+                  b="number",
+                  nums=["number"])
         def f(a, b=1, *nums, **params):
             return a * b + sum(nums)
 
@@ -598,8 +607,8 @@ class TestValidator(unittest.TestCase):
 
     def test_adapts_kwargs(self):
         @V.adapts(a="integer",
-                   b="number",
-                   params={"?foo": int, "?bar": float})
+                  b="number",
+                  params={"?foo": int, "?bar": float})
         def f(a, b=1, **params):
             return a * b + params.get("foo", 1) * params.get("bar", 0.0)
 
@@ -612,9 +621,9 @@ class TestValidator(unittest.TestCase):
 
     def test_adapts_varargs_kwargs(self):
         @V.adapts(a="integer",
-                   b="number",
-                   nums=["number"],
-                   params={"?foo": int, "?bar": float})
+                  b="number",
+                  nums=["number"],
+                  params={"?foo": int, "?bar": float})
         def f(a, b=1, *nums, **params):
             return a * b + sum(nums) + params.get("foo", 1) * params.get("bar", 0.0)
 
@@ -662,10 +671,10 @@ class TestValidator(unittest.TestCase):
 
         for valid in [
             {'n': 2},
-            {'n': 2.1, 'i':3},
-            {'n':-1, 'b':False},
+            {'n': 2.1, 'i': 3},
+            {'n': -1, 'b': False},
             {'n': Decimal(3), 'e': "r"},
-            {'n': 2L, 'd': datetime.now()},
+            {'n': long(2), 'd': datetime.now()},
             {'n': 0, 'd': date.today()},
             {'n': 0, 's': "abc"},
             {'n': 0, 'p': None},
@@ -709,10 +718,10 @@ class TestValidator(unittest.TestCase):
     def test_complex_adaptation(self):
         for value in [
             {'n': 2},
-            {'n': 2.1, 'i':3},
-            {'n':-1, 'b':False},
+            {'n': 2.1, 'i': 3},
+            {'n': -1, 'b': False},
             {'n': Decimal(3), 'e': "r"},
-            {'n': 2L, 'd': datetime.now()},
+            {'n': long(2), 'd': datetime.now()},
             {'n': 0, 'd': date.today()},
             {'n': 0, 's': "abc"},
             {'n': 0, 'p': None},
@@ -725,16 +734,16 @@ class TestValidator(unittest.TestCase):
         ]:
             adapted = self.complex_validator.validate(value)
             self.assertTrue(isinstance(adapted["n"], (int, long, float, Decimal)))
-            self.assertTrue(isinstance(adapted["i"], (int, long)))
+            self.assertTrue(isinstance(adapted["i"], int_types))
             self.assertTrue(adapted.get("b") is None or isinstance(adapted["b"], bool))
             self.assertTrue(adapted.get("d") is None or isinstance(adapted["d"], (date, datetime)))
             self.assertTrue(adapted.get("e") is None or adapted["e"] in "rgb")
-            self.assertTrue(adapted.get("s") is None or isinstance(adapted["s"], basestring))
+            self.assertTrue(adapted.get("s") is None or isinstance(adapted["s"], string_types))
             self.assertTrue(adapted.get("l") is None or isinstance(adapted["l"], list))
             self.assertTrue(adapted.get("t") is None or isinstance(adapted["t"], tuple))
             self.assertTrue(adapted.get("h") is None or isinstance(adapted["h"], dict))
             if adapted.get("l") is not None:
-                self.assertTrue(all(isinstance(item["s2"], basestring)
+                self.assertTrue(all(isinstance(item["s2"], string_types)
                                     for item in adapted["l"]))
             if adapted.get("t") is not None:
                 self.assertEqual(len(adapted["t"]), 2)
@@ -743,15 +752,16 @@ class TestValidator(unittest.TestCase):
             if adapted.get("h") is not None:
                 self.assertTrue(all(isinstance(key, int)
                                     for key in adapted["h"].keys()))
-                self.assertTrue(all(isinstance(value_item, basestring)
+                self.assertTrue(all(isinstance(value_item, string_types)
                                     for value in adapted["h"].values()
                                     for value_item in value))
             if adapted.get("o") is not None:
-                self.assertTrue(isinstance(adapted["o"]["i2"], (int, long)))
+                self.assertTrue(isinstance(adapted["o"]["i2"], int_types))
 
     def test_humanized_names(self):
         class DummyValidator(V.Validator):
             name = "dummy"
+
             def validate(self, value, adapt=True):
                 return value
 
@@ -759,40 +769,42 @@ class TestValidator(unittest.TestCase):
         self.assertEqual(V.Nullable(DummyValidator()).humanized_name, "dummy or null")
         self.assertEqual(V.AnyOf("boolean", DummyValidator()).humanized_name,
                          "boolean or dummy")
+        self.assertEqual(V.AllOf("boolean", DummyValidator()).humanized_name,
+                         "boolean and dummy")
+        self.assertEqual(V.ChainOf("boolean", DummyValidator()).humanized_name,
+                         "boolean chained to dummy")
+        self.assertEqual(Date().humanized_name, "date or datetime")
 
     def test_error_message(self):
-        self._testValidation({"+foo": "number", "?bar":["integer"]}, errors=[
+        self._testValidation({"+foo": "number", "?bar": ["integer"]}, errors=[
             (42,
              "Invalid value 42 (int): must be Mapping"),
             ({},
              "Invalid value {} (dict): missing required properties: ['foo']"),
             ({"foo": "3"},
              "Invalid value '3' (str): must be number (at foo)"),
-            ({"foo": 3, "bar":None},
+            ({"foo": 3, "bar": None},
              "Invalid value None (NoneType): must be Sequence (at bar)"),
-            ({"foo": 3, "bar":[1, "2", 3]},
+            ({"foo": 3, "bar": [1, "2", 3]},
              "Invalid value '2' (str): must be integer (at bar[1])"),
         ])
 
     def test_error_message_custom_repr_value(self):
-        self._testValidation({"+foo": "number", "?bar":["integer"]},
+        self._testValidation({"+foo": "number", "?bar": ["integer"]},
                              error_value_repr=json.dumps,
-                             errors=[
-            (42,
-             "Invalid value 42 (int): must be Mapping"),
-            ({},
-             "Invalid value {} (dict): missing required properties: ['foo']"),
-            ({"foo": "3"},
-             'Invalid value "3" (str): must be number (at foo)'),
-            ({"foo": [3]},
-             'Invalid value [3] (list): must be number (at foo)'),
-            ({"foo": 3, "bar":None},
-             "Invalid value null (NoneType): must be Sequence (at bar)"),
-            ({"foo": 3, "bar": False},
-             "Invalid value false (bool): must be Sequence (at bar)"),
-            ({"foo": 3, "bar":[1, {u'a': 3}, 3]},
-             'Invalid value {"a": 3} (dict): must be integer (at bar[1])'),
-        ])
+                             errors=
+                             [(42, "Invalid value 42 (int): must be Mapping"),
+                              ({}, "Invalid value {} (dict): missing required properties: ['foo']"),
+                              ({"foo": "3"},
+                               'Invalid value "3" (str): must be number (at foo)'),
+                              ({"foo": [3]},
+                               'Invalid value [3] (list): must be number (at foo)'),
+                              ({"foo": 3, "bar": None},
+                               "Invalid value null (NoneType): must be Sequence (at bar)"),
+                              ({"foo": 3, "bar": False},
+                               "Invalid value false (bool): must be Sequence (at bar)"),
+                              ({"foo": 3, "bar": [1, {u'a': 3}, 3]},
+                               'Invalid value {"a": 3} (dict): must be integer (at bar[1])')])
 
     def test_error_message_json_type_names(self):
         V.set_name_for_types("null", type(None))
@@ -803,27 +815,25 @@ class TestValidator(unittest.TestCase):
         V.set_name_for_types("object", dict, collections.Mapping)
 
         self._testValidation({"+foo": "number",
-                              "?bar":["integer"],
+                              "?bar": ["integer"],
                               "?baz": V.AnyOf("number", ["number"]),
-                              "?opt": "?string",
-                              }, errors=[
-            (42,
-             "Invalid value 42 (integer): must be object"),
-            ({},
-             "Invalid value {} (object): missing required properties: ['foo']"),
-            ({"foo": "3"},
-             "Invalid value '3' (string): must be number (at foo)"),
-            ({"foo": None},
-             "Invalid value None (null): must be number (at foo)"),
-            ({"foo": 3, "bar":None},
-             "Invalid value None (null): must be array (at bar)"),
-            ({"foo": 3, "bar":[1, "2", 3]},
-             "Invalid value '2' (string): must be integer (at bar[1])"),
-            ({"foo": 3, "baz":"23"},
-             "Invalid value '23' (string): must be number or must be array (at baz)"),
-            ({"foo": 3, "opt":12},
-             "Invalid value 12 (integer): must be string (at opt)"),
-            ])
+                              "?opt": "?string"},
+                             errors=
+                             [(42, "Invalid value 42 (integer): must be object"),
+                              ({},
+                               "Invalid value {} (object): missing required properties: ['foo']"),
+                              ({"foo": "3"},
+                               "Invalid value '3' (string): must be number (at foo)"),
+                              ({"foo": None},
+                               "Invalid value None (null): must be number (at foo)"),
+                              ({"foo": 3, "bar": None},
+                               "Invalid value None (null): must be array (at bar)"),
+                              ({"foo": 3, "bar": [1, "2", 3]},
+                               "Invalid value '2' (string): must be integer (at bar[1])"),
+                              ({"foo": 3, "baz": "23"},
+                               "Invalid value '23' (string): must be number or must be array (at baz)"),
+                              ({"foo": 3, "opt": 12},
+                               "Invalid value 12 (integer): must be string (at opt)")])
 
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
@@ -872,11 +882,15 @@ class OptionalPropertiesTestValidator(TestValidator):
         })
 
     def test_required_properties_global(self):
-        self._testValidation({"+foo": "number", "bar": "boolean", "+baz":"string"},
-                             valid=[{"foo":-23., "baz":"yo"}],
+        self._testValidation({"+foo": "number", "bar": "boolean", "+baz": "string"},
+                             valid=[{"foo": -23., "baz": "yo"}],
                              invalid=[{},
-                                      {"bar":True},
-                                      {"baz":"yo"},
-                                      {"foo":3},
-                                      {"bar":False, "baz":"yo"},
-                                      {"bar":True, "foo":3.1}])
+                                      {"bar": True},
+                                      {"baz": "yo"},
+                                      {"foo": 3},
+                                      {"bar": False, "baz": "yo"},
+                                      {"bar": True, "foo": 3.1}])
+
+
+if __name__ == '__main__':
+    unittest.main()

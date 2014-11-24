@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="valideer",
-    version="0.3.2",
+    version="0.4",
     description="Lightweight data validation and adaptation library for Python",
     long_description=open("README.rst").read(),
     url="https://github.com/podio/valideer",
@@ -19,7 +19,8 @@ setup(
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Operating System :: OS Independent",
-        "Programming Language :: Python",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
     ],

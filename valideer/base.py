@@ -276,12 +276,12 @@ def returns(schema):
     """Create a decorator for validating function return value.
 
     Example::
+        @accepts(a=int, b=int)
+        @returns(int)
+        def f(a, b):
+            return a + b
 
-        @returns(a="number", body={"+field_ids": [int], "is_ok": bool})
-        def f(a, body):
-            print (a, body["field_ids"], body.get("is_ok"))
-
-    :param schemas: The schema for validating a given parameter.
+    :param schema: The schema for adapting a given parameter.
     """
     validate = parse(schema).validate
 

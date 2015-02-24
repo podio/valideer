@@ -5,7 +5,7 @@ from decorator import decorator
 from .compat import with_metaclass
 
 __all__ = [
-    "ValidationError", "SchemaError", "Validator", "accepts", "adapts",
+    "ValidationError", "SchemaError", "Validator", "accepts", "returns", "adapts",
     "parse", "parsing", "register", "register_factory",
     "set_name_for_types", "reset_type_names",
 ]
@@ -269,6 +269,27 @@ def accepts(**schemas):
     def validating(func, *args, **kwargs):
         validate(inspect.getcallargs(func, *args, **kwargs), adapt=False)
         return func(*args, **kwargs)
+    return validating
+
+
+def returns(schema):
+    """Create a decorator for validating function return value.
+
+    Example::
+
+        @returns(a="number", body={"+field_ids": [int], "is_ok": bool})
+        def f(a, body):
+            print (a, body["field_ids"], body.get("is_ok"))
+
+    :param schemas: The schema for validating a given parameter.
+    """
+    validate = parse(schema).validate
+
+    @decorator
+    def validating(func, *args, **kwargs):
+        ret = func(*args, **kwargs)
+        validate(ret, adapt=False)
+        return ret
     return validating
 
 

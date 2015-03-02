@@ -4,6 +4,7 @@ from functools import partial
 import collections
 import json
 import re
+import types
 import unittest
 import valideer as V
 from valideer.compat import long, unicode, xrange, string_types, int_types
@@ -535,6 +536,34 @@ class TestValidator(unittest.TestCase):
             partial(f, 1.0, b=1, field_ids=[3.0]),  # 'field_ids[0]' is not a integer
             partial(f, 1.0, b=1, field_ids=[], is_ok=1),  # 'is_ok' is not bool
             partial(f, 1.0, b=1, field_ids=[], sex="m"),  # 'sex' is not a gender
+        ]
+
+        for fcall in valid:
+            fcall()
+        for fcall in invalid:
+            self.assertRaises(V.ValidationError, fcall)
+
+    def test_returns(self):
+        @V.returns(int)
+        def f(a):
+            return a
+
+        @V.returns(V.Type(types.NoneType))
+        def g(a=True):
+            if a:
+                return a
+            else:
+                pass
+
+        valid = [
+            partial(f, 1),
+            partial(g, False),
+        ]
+
+        invalid = [
+            partial(f, 1.0),
+            partial(f, 'x'),
+            partial(g, True),
         ]
 
         for fcall in valid:

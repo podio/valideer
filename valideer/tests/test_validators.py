@@ -4,7 +4,6 @@ from functools import partial
 import collections
 import json
 import re
-import types
 import unittest
 import valideer as V
 from valideer.compat import long, unicode, xrange, string_types, int_types
@@ -388,6 +387,10 @@ class TestValidator(unittest.TestCase):
                              adapted=[(None, -1), (0, 0)],
                              invalid=[1.1, True, False])
 
+        with self.assertRaises(V.ValidationError):
+            self.parse(V.Nullable("integer", 1.1)).validate(None)
+
+
     def test_nullable_with_default_object_property(self):
         class ObjectNullable(V.Nullable):
             default_object_property = property(lambda self: self.default)
@@ -548,7 +551,7 @@ class TestValidator(unittest.TestCase):
         def f(a):
             return a
 
-        @V.returns(V.Type(types.NoneType))
+        @V.returns(V.Type(type(None)))
         def g(a=True):
             if a:
                 return a

@@ -104,7 +104,10 @@ class Nullable(Validator):
             if isinstance(validator, (Nullable, NonNullable)):
                 validator = validator._validator
             self._validator = validator
+
         self._default = default
+        if self.default is not None:
+            self._validator.validate(self.default)
 
     def validate(self, value, adapt=True):
         if value is None:

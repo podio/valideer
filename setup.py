@@ -12,7 +12,7 @@ setup(
     author_email="george.sakkis@gmail.com",
     packages=find_packages(),
     install_requires=["decorator"],
-    tests_require=["nose", "coverage"],
+    test_suite="valideer.tests",
     platforms=["any"],
     keywords="validation adaptation typechecking jsonschema",
     classifiers=[

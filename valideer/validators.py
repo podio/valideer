@@ -1,4 +1,5 @@
-from .base import Validator, ValidationError, parse, get_type_name
+from .errors import get_type_name
+from .base import Validator, ValidationError, parse
 from .compat import string_types, izip, imap, iteritems
 import collections
 import datetime

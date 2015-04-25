@@ -895,6 +895,19 @@ class TestValidator(unittest.TestCase):
                 ),
             )
 
+    def test_full_validate_single_error(self):
+        obj = {"+foo": "number", "?bar": ["integer"]}
+        self._testFullValidationErrors(obj, 42,
+            ["Invalid value 42 (int): must be Mapping"])
+        self._testFullValidationErrors(obj, {},
+            ["Invalid value {} (dict): missing required properties: ['foo']"])
+        self._testFullValidationErrors(obj, {"foo": "3"},
+            ["Invalid value '3' (str): must be number (at foo)"])
+        self._testFullValidationErrors(obj, {"foo": 3, "bar": None},
+            ["Invalid value None (NoneType): must be Sequence (at bar)"])
+        self._testFullValidationErrors(obj, {"foo": 3, "bar": [1, "2", 3]},
+            ["Invalid value '2' (str): must be integer (at bar[1])"])
+
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
         validator = self.parse(obj)
@@ -914,7 +927,17 @@ class TestValidator(unittest.TestCase):
                 validator.validate(value)
             except V.ValidationError as ex:
                 error_repr = ex.to_string(error_value_repr)
-                self.assertEqual(error_repr, error, "Actual error: %r" % error_repr)
+                self.assertEqual(error_repr, error)
+
+    def _testFullValidationErrors(self, obj, value, errors, error_value_repr=repr):
+        validator = self.parse(obj)
+        try:
+            validator.full_validate(value)
+        except V.MultipleValidationError as ex:
+            self.assertEqual(len(ex.errors), len(errors))
+            for sub_ex, error in zip(ex.errors, errors):
+                sub_ex_repr = sub_ex.to_string(error_value_repr)
+                self.assertEqual(sub_ex_repr, error)
 
 
 class TestValidatorModuleParse(TestValidator):

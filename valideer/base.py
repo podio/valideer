@@ -4,7 +4,12 @@ from threading import RLock
 from decorator import decorator
 
 from .compat import with_metaclass
-from .errors import SchemaError, ValidationError
+from .errors import (
+    SchemaError,
+    BaseValidationError,
+    ValidationError,
+    MultipleValidationError,
+)
 
 
 __all__ = [
@@ -178,7 +183,9 @@ class Validator(object):
     name = None
 
     def validate(self, value, adapt=True):
-        """Check if ``value`` is valid and if so adapt it.
+        """
+        Check if ``value`` is valid and if so adapt it, otherwise raise a
+        ``ValidationError`` for the first encountered error.
 
         :param adapt: If ``False``, it indicates that the caller is interested
             only on whether ``value`` is valid, not on adapting it. This is
@@ -190,6 +197,24 @@ class Validator(object):
         """
         raise NotImplementedError
 
+    def full_validate(self, value, adapt=True):
+        """
+        Same as ``validate`` but raise ``MultipleValidationError`` that holds
+        all validation errors if ``value`` is invalid.
+
+        :param adapt: If ``False``, it indicates that the caller is interested
+            only on whether ``value`` is valid, not on adapting it. This is
+            essentially an optimization hint for cases that validation can be
+            done more efficiently than adaptation.
+
+        :raises MultipleValidationError: If ``value`` is invalid.
+        :returns: The adapted value if ``adapt`` is ``True``, otherwise anything.
+        """
+        try:
+            return self.validate(value, adapt)
+        except ValidationError as ex:
+            raise MultipleValidationError(ex)
+
     def is_valid(self, value):
         """Check if the value is valid.
 
@@ -198,7 +223,7 @@ class Validator(object):
         try:
             self.validate(value, adapt=False)
             return True
-        except ValidationError:
+        except BaseValidationError:
             return False
 
     def error(self, value):

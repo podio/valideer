@@ -28,10 +28,18 @@ class ValidationError(ValueError):
         self.msg = msg
         self.value = value
         self.context = []
-        super(ValidationError, self).__init__(str(self))
+        super(ValidationError, self).__init__()
 
     def __str__(self):
         return self.to_string()
+
+    @property
+    def message(self):
+        return self.to_string()
+
+    @property
+    def args(self):
+        return (self.to_string(),)
 
     def to_string(self, repr_value=repr):
         msg = self.msg

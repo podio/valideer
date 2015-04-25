@@ -817,6 +817,14 @@ class TestValidator(unittest.TestCase):
              "Invalid value '2' (str): must be integer (at bar[1])"),
         ])
 
+    def test_error_properties(self):
+        for contexts in [], ['bar'], ['bar', 'baz']:
+            ex = V.ValidationError('foo')
+            for context in contexts:
+                ex.add_context(context)
+            self.assertEqual(ex.message, str(ex))
+            self.assertEqual(ex.args, (str(ex),))
+
     def test_error_message_custom_repr_value(self):
         self._testValidation({"+foo": "number", "?bar": ["integer"]},
                              error_value_repr=json.dumps,

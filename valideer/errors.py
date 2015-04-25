@@ -1,6 +1,6 @@
 __all__ = [
     "SchemaError",
-    "BaseValidationError", "ValidationError",
+    "BaseValidationError", "ValidationError", "MultipleValidationError",
     "set_name_for_types", "reset_type_names",
 ]
 
@@ -40,7 +40,7 @@ class BaseValidationError(ValueError):
         return (self.to_string(),)
 
     def to_string(self, repr_value=repr):
-        raise NotImplementedError('Abstract method')
+        raise NotImplementedError("Abstract method")
 
 
 class ValidationError(BaseValidationError):
@@ -49,10 +49,10 @@ class ValidationError(BaseValidationError):
     _UNDEFINED = object()
 
     def __init__(self, msg, value=_UNDEFINED):
+        super(ValidationError, self).__init__()
         self.msg = msg
         self.value = value
         self.context = []
-        super(ValidationError, self).__init__()
 
     def to_string(self, repr_value=repr):
         msg = self.msg
@@ -68,3 +68,27 @@ class ValidationError(BaseValidationError):
     def add_context(self, context):
         self.context.append(context)
         return self
+
+
+class MultipleValidationError(BaseValidationError):
+    """Encapsulates multiple validation errors for a given value."""
+
+    def __init__(self, *errors):
+        super(MultipleValidationError, self).__init__()
+        self.errors = []
+        self.add_errors(*errors)
+
+    def to_string(self, repr_value=repr):
+        lines = ["Multiple validation errors:"]
+        lines.extend("- " + e.to_string(repr_value) for e in self.errors)
+        return "\n".join(lines)
+
+    def add_errors(self, *errors):
+        for error in errors:
+            if isinstance(error, MultipleValidationError):
+                self.errors.extend(error.errors)
+            elif isinstance(error, BaseValidationError):
+                self.errors.append(error)
+            else:
+                raise TypeError("error should be a BaseValidationError instance; "
+                                "%r given" % error.__class__.__name__)

@@ -922,6 +922,15 @@ class TestValidator(unittest.TestCase):
             "Invalid value True (bool): must be string (at 2['foo'][1])",
         ])
 
+    def test_full_validate_heterogeneous_sequence(self):
+        obj = ("integer", ("string", "number"))
+        value = ("3", (4, True))
+        self._testFullValidationErrors(obj, value, errors=[
+            "Invalid value '3' (str): must be integer (at 0)",
+            "Invalid value 4 (int): must be string (at 1[0])",
+            "Invalid value True (bool): must be number (at 1[1])",
+        ])
+
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
         validator = self.parse(obj)

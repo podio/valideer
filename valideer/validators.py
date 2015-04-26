@@ -539,36 +539,43 @@ def _HomogeneousSequenceFactory(obj):
         return HomogeneousSequence(*obj)
 
 
-class HeterogeneousSequence(Type):
+class HeterogeneousSequence(FullValidator):
     """A validator that accepts heterogeneous, fixed size sequences."""
-
-    accept_types = collections.Sequence
-    reject_types = string_types
 
     def __init__(self, *item_schemas):
         """Instantiate a :py:class:`HeterogeneousSequence` validator.
 
         :param item_schemas: The schema of each element of the the tuple.
         """
-        super(HeterogeneousSequence, self).__init__()
+        self._type_validator = Type(accept_types=collections.Sequence,
+                                    reject_types=string_types)
         self._item_validators = list(map(parse, item_schemas))
 
-    def validate(self, value, adapt=True):
-        super(HeterogeneousSequence, self).validate(value)
-        if len(value) != len(self._item_validators):
-            raise ValidationError("%d items expected, %d found" %
-                                  (len(self._item_validators), len(value)), value)
-        if adapt:
-            return value.__class__(self._iter_validated_items(value, adapt))
-        for _ in self._iter_validated_items(value, adapt):
-            pass
+    def _iter_errors(self, value, adapt, full):
+        try:
+            self._type_validator.validate(value)
+        except ValidationError as ex:
+            yield ex
+            return
 
-    def _iter_validated_items(self, value, adapt):
+        if len(value) != len(self._item_validators):
+            yield ValidationError("%d items expected, %d found" %
+                                  (len(self._item_validators), len(value)), value)
+
+        iter_pairs = self._iter_validated_items_and_errors(value, adapt, full)
+        item_errors, items = _partition_pairs(iter_pairs)
+        for item_error in item_errors:
+            yield item_error
+        if adapt:
+            raise self._Value(value.__class__(items))
+
+    def _iter_validated_items_and_errors(self, value, adapt, full):
+        method = 'full_validate' if full else 'validate'
         for i, (validator, item) in enumerate(zip(self._item_validators, value)):
             try:
-                yield validator.validate(item, adapt)
+                yield (True, getattr(validator, method)(item, adapt=adapt))
             except ValidationError as ex:
-                raise ex.add_context(i)
+                yield (False, ex.add_context(i))
 
 
 @HeterogeneousSequence.register_factory

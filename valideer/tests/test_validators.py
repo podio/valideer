@@ -5,6 +5,7 @@ import collections
 import json
 import re
 import unittest
+
 import valideer as V
 from valideer.compat import long, unicode, xrange, string_types, int_types
 
@@ -908,6 +909,15 @@ class TestValidator(unittest.TestCase):
         self._testFullValidationErrors(obj, {"foo": 3, "bar": [1, "2", 3]},
             ["Invalid value '2' (str): must be integer (at bar[1])"])
 
+    def test_full_validate_homogeneous_sequence(self):
+        obj = [{"foo": ["string"]}]
+        value = [1, {"foo": 2.5}, {"foo": ["x", True, "y"]}]
+        self._testFullValidationErrors(obj, value, errors=[
+            "Invalid value 1 (int): must be Mapping (at 0)",
+            "Invalid value 2.5 (float): must be Sequence (at 1['foo'])",
+            "Invalid value True (bool): must be string (at 2['foo'][1])",
+        ])
+
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
         validator = self.parse(obj)
@@ -934,10 +944,14 @@ class TestValidator(unittest.TestCase):
         try:
             validator.full_validate(value)
         except V.MultipleValidationError as ex:
-            self.assertEqual(len(ex.errors), len(errors))
-            for sub_ex, error in zip(ex.errors, errors):
-                sub_ex_repr = sub_ex.to_string(error_value_repr)
-                self.assertEqual(sub_ex_repr, error)
+            found_errors = ex.errors
+        else:
+            found_errors = []
+
+        self.assertEqual(len(found_errors), len(errors))
+        for found_error, error in zip(found_errors, errors):
+            found_error_repr = found_error.to_string(error_value_repr)
+            self.assertEqual(found_error_repr, error)
 
 
 class TestValidatorModuleParse(TestValidator):

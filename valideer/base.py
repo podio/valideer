@@ -194,8 +194,11 @@ class Validator(object):
 
     def full_validate(self, value, adapt=True):
         """
-        Same as ``validate`` but raise ``MultipleValidationError`` that holds
-        all validation errors if ``value`` is invalid.
+        Same as :py:meth:`validate` but raise :py:class:`MultipleValidationError`
+        that holds all validation errors if ``value`` is invalid.
+
+        The default implementation simply calls :py:meth:`validate` and wraps a
+        :py:class:`ValidationError` into a :py:class:`MultipleValidationError`.
 
         :param adapt: If ``False``, it indicates that the caller is interested
             only on whether ``value`` is valid, not on adapting it. This is
@@ -238,6 +241,54 @@ class Validator(object):
     parse = staticmethod(parse)
     register = staticmethod(register)
     register_factory = staticmethod(register_factory)
+
+
+class FullValidator(Validator):
+    """
+    Handy abstract base class for validators that need to report multiple
+    errors without duplicating the logic between :py:meth:`validate` and
+    :py:meth:`full_validate` or making the former less efficient than necessary
+    by delegating to the latter.
+
+    Concrete subclasses need to implement just :py:meth:`_iter_errors` as a
+    generator that:
+    1. Yields all validation errors.
+    2. Raises a :py:class:`_Value` exception if the value is valid. In this case
+       (and only if no errors have been yielded) the returned (possibly adapted)
+       value is the ``message`` of the :py:class:`_Value` exception. If no errors
+       are yielded and no :py:class:`_Value` exception is raised, the input
+       ``value`` is considered valid and returned.
+    """
+
+    def validate(self, value, adapt=True):
+        try:
+            error = self._iter_errors(value, adapt, full=False).next()
+        except self._Value as ex:
+            return ex.message
+        except StopIteration:
+            return value
+        else:
+            raise error
+
+    def full_validate(self, value, adapt=True):
+        errors = []
+        ex = None
+        try:
+            for error in self._iter_errors(value, adapt, full=True):
+                errors.append(error)
+        except self._Value as ex:
+            pass
+
+        if errors:
+            raise MultipleValidationError(*errors)
+
+        return ex.message if ex else value
+
+    def _iter_errors(self, value, adapt, full):
+        raise NotImplementedError
+
+    class _Value(Exception):
+        pass
 
 
 def accepts(**schemas):

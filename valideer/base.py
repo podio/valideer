@@ -254,7 +254,7 @@ class FullValidator(Validator):
     1. Yields all validation errors.
     2. Raises a :py:class:`_Value` exception if the value is valid. In this case
        (and only if no errors have been yielded) the returned (possibly adapted)
-       value is the ``message`` of the :py:class:`_Value` exception. If no errors
+       value is the ``args[0]`` of the :py:class:`_Value` exception. If no errors
        are yielded and no :py:class:`_Value` exception is raised, the input
        ``value`` is considered valid and returned.
     """
@@ -263,7 +263,7 @@ class FullValidator(Validator):
         try:
             error = next(self._iter_errors(value, adapt, full=False))
         except self._Value as ex:
-            return ex.message
+            return ex.args[0]
         except StopIteration:
             return value
         else:
@@ -281,7 +281,7 @@ class FullValidator(Validator):
         if errors:
             raise MultipleValidationError(*errors)
 
-        return ex.message if ex else value
+        return ex.args[0] if ex else value
 
     def _iter_errors(self, value, adapt, full):
         raise NotImplementedError

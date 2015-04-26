@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from threading import RLock
 from decorator import decorator
 
-from .compat import with_metaclass
+from six import with_metaclass
 from .errors import SchemaError, ValidationError, MultipleValidationError
 
 
@@ -166,8 +166,7 @@ class _MetaValidator(type):
         return validator_type
 
 
-@with_metaclass(_MetaValidator)
-class Validator(object):
+class Validator(with_metaclass(_MetaValidator)):
     """Abstract base class of all validators.
 
     Concrete subclasses must implement :py:meth:`validate`. A subclass may optionally

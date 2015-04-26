@@ -5,9 +5,13 @@ import collections
 import json
 import re
 import unittest
+from six import string_types, integer_types, binary_type, text_type, PY3
+from six.moves import xrange, zip
 
 import valideer as V
-from valideer.compat import long, unicode, xrange, string_types, int_types
+
+if PY3:
+    long = int
 
 
 class Fraction(V.Type):
@@ -40,7 +44,7 @@ class TestValidator(unittest.TestCase):
             "?s": V.String(min_length=1, max_length=8),
             "?p": V.Nullable(re.compile(r"\d{1,4}$")),
             "?l": [{"+s2": "string"}],
-            "?t": (unicode, "number"),
+            "?t": (text_type, "number"),
             "?h": V.Mapping(int, ["string"]),
             "?o": V.NonNullable({"+i2": "integer"}),
         })
@@ -48,7 +52,7 @@ class TestValidator(unittest.TestCase):
     def test_none(self):
         for obj in ["boolean", "integer", "number", "string",
                     V.HomogeneousSequence, V.HeterogeneousSequence,
-                    V.Mapping, V.Object, int, float, str, unicode,
+                    V.Mapping, V.Object, int, float, binary_type, text_type,
                     Fraction, Fraction(), Gender, Gender()]:
             self.assertFalse(self.parse(obj).is_valid(None))
 
@@ -763,7 +767,7 @@ class TestValidator(unittest.TestCase):
         ]:
             adapted = self.complex_validator.validate(value)
             self.assertTrue(isinstance(adapted["n"], (int, long, float, Decimal)))
-            self.assertTrue(isinstance(adapted["i"], int_types))
+            self.assertTrue(isinstance(adapted["i"], integer_types))
             self.assertTrue(adapted.get("b") is None or isinstance(adapted["b"], bool))
             self.assertTrue(adapted.get("d") is None or isinstance(adapted["d"], (date, datetime)))
             self.assertTrue(adapted.get("e") is None or adapted["e"] in "rgb")
@@ -776,7 +780,7 @@ class TestValidator(unittest.TestCase):
                                     for item in adapted["l"]))
             if adapted.get("t") is not None:
                 self.assertEqual(len(adapted["t"]), 2)
-                self.assertTrue(isinstance(adapted["t"][0], unicode))
+                self.assertTrue(isinstance(adapted["t"][0], text_type))
                 self.assertTrue(isinstance(adapted["t"][1], float))
             if adapted.get("h") is not None:
                 self.assertTrue(all(isinstance(key, int)
@@ -785,7 +789,7 @@ class TestValidator(unittest.TestCase):
                                     for value in adapted["h"].values()
                                     for value_item in value))
             if adapted.get("o") is not None:
-                self.assertTrue(isinstance(adapted["o"]["i2"], int_types))
+                self.assertTrue(isinstance(adapted["o"]["i2"], integer_types))
 
     def test_humanized_names(self):
         class DummyValidator(V.Validator):
@@ -847,7 +851,7 @@ class TestValidator(unittest.TestCase):
         V.set_name_for_types("null", type(None))
         V.set_name_for_types("integer", int, long)
         V.set_name_for_types("number", float)
-        V.set_name_for_types("string", str, unicode)
+        V.set_name_for_types("string", binary_type, text_type)
         V.set_name_for_types("array", list, collections.Sequence)
         V.set_name_for_types("object", dict, collections.Mapping)
 
@@ -973,7 +977,7 @@ class OptionalPropertiesTestValidator(TestValidator):
             "s": V.String(min_length=1, max_length=8),
             "p": V.Nullable(re.compile(r"\d{1,4}$")),
             "l": [{"+s2": "string"}],
-            "t": (unicode, "number"),
+            "t": (text_type, "number"),
             "h": V.Mapping(int, ["string"]),
             "o": V.NonNullable({"+i2": "integer"}),
         })

@@ -4,9 +4,10 @@ import inspect
 import itertools
 import numbers
 import re
+from six import string_types, iteritems
+from six.moves import zip, map
 
 from .base import Validator, FullValidator, ValidationError, parse
-from .compat import string_types, izip, imap, iteritems
 from .errors import get_type_name
 
 
@@ -36,7 +37,7 @@ class AnyOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = list(imap(parse, schemas))
+        self._validators = list(map(parse, schemas))
 
     def validate(self, value, adapt=True):
         msgs = []
@@ -60,7 +61,7 @@ class AllOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = list(imap(parse, schemas))
+        self._validators = list(map(parse, schemas))
 
     def validate(self, value, adapt=True):
         result = value
@@ -80,7 +81,7 @@ class ChainOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = list(imap(parse, schemas))
+        self._validators = list(map(parse, schemas))
 
     def validate(self, value, adapt=True):
         for validator in self._validators:
@@ -204,7 +205,7 @@ class Enum(Validator):
 
     @property
     def humanized_name(self):
-        return "one of {%s}" % ", ".join(list(imap(repr, self.values)))
+        return "one of {%s}" % ", ".join(list(map(repr, self.values)))
 
 
 class Condition(Validator):
@@ -550,7 +551,7 @@ class HeterogeneousSequence(Type):
         :param item_schemas: The schema of each element of the the tuple.
         """
         super(HeterogeneousSequence, self).__init__()
-        self._item_validators = list(imap(parse, item_schemas))
+        self._item_validators = list(map(parse, item_schemas))
 
     def validate(self, value, adapt=True):
         super(HeterogeneousSequence, self).validate(value)
@@ -563,7 +564,7 @@ class HeterogeneousSequence(Type):
             pass
 
     def _iter_validated_items(self, value, adapt):
-        for i, (validator, item) in enumerate(izip(self._item_validators, value)):
+        for i, (validator, item) in enumerate(zip(self._item_validators, value)):
             try:
                 yield validator.validate(item, adapt)
             except ValidationError as ex:
@@ -748,7 +749,7 @@ def _ObjectFactory(obj, required_properties=None, additional_properties=None):
 def _format_types(types):
     if inspect.isclass(types):
         types = (types,)
-    names = list(imap(get_type_name, types))
+    names = list(map(get_type_name, types))
     s = names[-1]
     if len(names) > 1:
         s = ", ".join(names[:-1]) + " or " + s

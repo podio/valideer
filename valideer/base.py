@@ -271,17 +271,16 @@ class FullValidator(Validator):
 
     def full_validate(self, value, adapt=True):
         errors = []
-        ex = None
         try:
             for error in self._iter_errors(value, adapt, full=True):
                 errors.append(error)
         except self._Value as ex:
-            pass
+            value = ex.args[0]
 
         if errors:
             raise MultipleValidationError(*errors)
 
-        return ex.args[0] if ex else value
+        return value
 
     def _iter_errors(self, value, adapt, full):
         raise NotImplementedError

@@ -871,21 +871,21 @@ class TestValidator(unittest.TestCase):
                               ({"foo": 3, "opt": 12},
                                "Invalid value 12 (integer): must be string (at opt)")])
 
-    def test_multiple_multiple_validation_error_message(self):
+    def test_multiple_validation_error_message(self):
         ex = V.MultipleValidationError(
-            V.ValidationError('More cowbell', 'moo'),
+            V.ValidationError('More cowbell', 'moo').add_context(0),
             V.MultipleValidationError(
-                V.ValidationError('Less blink', 'blink'),
-                V.ValidationError('More cowbell', 'mooooo'),
+                V.ValidationError('Less blink', 'blink').add_context('x').add_context('1'),
+                V.ValidationError('More cowbell', 'mooooo').add_context('y').add_context('1'),
             ),
-            V.ValidationError('Boring', 'stuff'),
+            V.ValidationError('Boring', 'stuff').add_context(2),
         )
         self.assertEqual(len(ex.errors), 4)
         self.assertEqual(str(ex), "Multiple validation errors:\n"
-                                  "- Invalid value 'moo' (str): More cowbell\n"
-                                  "- Invalid value 'blink' (str): Less blink\n"
-                                  "- Invalid value 'mooooo' (str): More cowbell\n"
-                                  "- Invalid value 'stuff' (str): Boring")
+                                  "- Invalid value 'moo' (str): More cowbell (at 0)\n"
+                                  "- Invalid value 'blink' (str): Less blink (at 1['x'])\n"
+                                  "- Invalid value 'mooooo' (str): More cowbell (at 1['y'])\n"
+                                  "- Invalid value 'stuff' (str): Boring (at 2)")
         with self.assertRaises(TypeError):
             V.MultipleValidationError(
                 V.ValidationError('More cowbell'),

@@ -1,6 +1,5 @@
 __all__ = [
-    "SchemaError",
-    "BaseValidationError", "ValidationError", "MultipleValidationError",
+    "SchemaError", "ValidationError", "MultipleValidationError",
     "set_name_for_types", "reset_type_names",
 ]
 
@@ -25,8 +24,15 @@ class SchemaError(Exception):
     """An object cannot be parsed as a validator."""
 
 
-class BaseValidationError(ValueError):
-    """Abstract base class of all validation errors."""
+class ValidationError(ValueError):
+    """A value is invalid for a given validator."""
+
+    _UNDEFINED = object()
+
+    def __init__(self, msg, value=_UNDEFINED):
+        self.msg = msg
+        self.value = value
+        self.context = []
 
     def __str__(self):
         return self.to_string()
@@ -38,21 +44,6 @@ class BaseValidationError(ValueError):
     @property
     def args(self):
         return (self.to_string(),)
-
-    def to_string(self, repr_value=repr):
-        raise NotImplementedError("Abstract method")
-
-
-class ValidationError(BaseValidationError):
-    """A value is invalid for a given validator."""
-
-    _UNDEFINED = object()
-
-    def __init__(self, msg, value=_UNDEFINED):
-        super(ValidationError, self).__init__()
-        self.msg = msg
-        self.value = value
-        self.context = []
 
     def to_string(self, repr_value=repr):
         msg = self.msg
@@ -70,11 +61,10 @@ class ValidationError(BaseValidationError):
         return self
 
 
-class MultipleValidationError(BaseValidationError):
+class MultipleValidationError(ValidationError):
     """Encapsulates multiple validation errors for a given value."""
 
     def __init__(self, *errors):
-        super(MultipleValidationError, self).__init__()
         self.errors = []
         self.add_errors(*errors)
 
@@ -83,12 +73,17 @@ class MultipleValidationError(BaseValidationError):
         lines.extend("- " + e.to_string(repr_value) for e in self.errors)
         return "\n".join(lines)
 
+    def add_context(self, context):
+        for error in self.errors:
+            error.add_context(context)
+        return self
+
     def add_errors(self, *errors):
         for error in errors:
             if isinstance(error, MultipleValidationError):
                 self.errors.extend(error.errors)
-            elif isinstance(error, BaseValidationError):
+            elif isinstance(error, ValidationError):
                 self.errors.append(error)
             else:
-                raise TypeError("error should be a BaseValidationError instance; "
-                                "%r given" % error.__class__.__name__)
+                raise TypeError("ValidationError instance expected, %r given"
+                                % error.__class__.__name__)

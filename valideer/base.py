@@ -4,12 +4,7 @@ from threading import RLock
 from decorator import decorator
 
 from .compat import with_metaclass
-from .errors import (
-    SchemaError,
-    BaseValidationError,
-    ValidationError,
-    MultipleValidationError,
-)
+from .errors import SchemaError, ValidationError, MultipleValidationError
 
 
 __all__ = [
@@ -223,7 +218,7 @@ class Validator(object):
         try:
             self.validate(value, adapt=False)
             return True
-        except BaseValidationError:
+        except ValidationError:
             return False
 
     def error(self, value):

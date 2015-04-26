@@ -262,7 +262,7 @@ class FullValidator(Validator):
 
     def validate(self, value, adapt=True):
         try:
-            error = self._iter_errors(value, adapt, full=False).next()
+            error = next(self._iter_errors(value, adapt, full=False))
         except self._Value as ex:
             return ex.message
         except StopIteration:

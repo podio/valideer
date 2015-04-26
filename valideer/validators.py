@@ -588,10 +588,8 @@ def _HeterogeneousSequenceFactory(obj):
         return HeterogeneousSequence(*obj)
 
 
-class Mapping(Type):
+class Mapping(FullValidator):
     """A validator that accepts mappings (:py:class:`collections.Mapping` instances)."""
-
-    accept_types = collections.Mapping
 
     def __init__(self, key_schema=None, value_schema=None):
         """Instantiate a :py:class:`Mapping` validator.
@@ -599,7 +597,7 @@ class Mapping(Type):
         :param key_schema: If not None, the schema of the dict keys.
         :param value_schema: If not None, the schema of the dict values.
         """
-        super(Mapping, self).__init__()
+        self._type_validator = Type(accept_types=collections.Mapping)
         if key_schema is not None:
             self._key_validator = parse(key_schema)
         else:
@@ -609,12 +607,49 @@ class Mapping(Type):
         else:
             self._value_validator = None
 
-    def validate(self, value, adapt=True):
-        super(Mapping, self).validate(value)
+    def _iter_errors(self, value, adapt, full):
+        try:
+            self._type_validator.validate(value)
+        except ValidationError as ex:
+            yield ex
+            return
+
+        iter_pairs = self._iter_validated_items_and_errors(value, adapt, full)
+        item_errors, items = _partition_pairs(iter_pairs)
+        for item_error in item_errors:
+            yield item_error
         if adapt:
-            return dict(self._iter_validated_items(value, adapt))
-        for _ in self._iter_validated_items(value, adapt):
-            pass
+            raise self._Value(dict(items))
+
+    def _iter_validated_items_and_errors(self, value, adapt, full):
+        if self._key_validator is None:
+            validate_key = None
+        elif full:
+            validate_key = self._key_validator.full_validate
+        else:
+            validate_key = self._key_validator.validate
+
+        if self._value_validator is None:
+            validate_value = None
+        elif full:
+            validate_value = self._value_validator.full_validate
+        else:
+            validate_value = self._value_validator.validate
+
+        for k, v in iteritems(value):
+            if validate_key is not None:
+                try:
+                    k = validate_key(k, adapt)
+                except ValidationError as ex:
+                    yield (False, ex)
+
+            if validate_value is not None:
+                try:
+                    v = validate_value(v, adapt)
+                except ValidationError as ex:
+                    yield (False, ex.add_context(k))
+
+            yield (True, (k, v))
 
     def _iter_validated_items(self, value, adapt):
         validate_key = validate_value = None
@@ -622,6 +657,7 @@ class Mapping(Type):
             validate_key = self._key_validator.validate
         if self._value_validator is not None:
             validate_value = self._value_validator.validate
+
         for k, v in iteritems(value):
             if validate_value is not None:
                 try:

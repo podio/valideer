@@ -931,6 +931,24 @@ class TestValidator(unittest.TestCase):
             "Invalid value True (bool): must be number (at 1[1])",
         ])
 
+    def test_full_validate_mapping(self):
+        obj = V.Mapping("string", V.Mapping("integer", ["number"]))
+        value = {
+            1: {
+                "a": []
+            },
+            "x": {
+                0: [4.2, -1],
+                True: [1, "z", 2]
+            }
+        }
+        self._testFullValidationErrors(obj, value, errors=[
+            "Invalid value 1 (int): must be string",
+            "Invalid value 'a' (str): must be integer (at 1)",
+            "Invalid value True (bool): must be integer (at x)",
+            "Invalid value 'z' (str): must be number (at x[True][1])",
+        ])
+
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
         validator = self.parse(obj)

@@ -1,4 +1,5 @@
 import inspect
+import itertools
 from contextlib import contextmanager
 from threading import RLock
 from decorator import decorator
@@ -242,51 +243,51 @@ class Validator(with_metaclass(_MetaValidator)):
     register_factory = staticmethod(register_factory)
 
 
-class FullValidator(Validator):
+class ContainerValidator(Validator):
     """
-    Handy abstract base class for validators that need to report multiple
-    errors without duplicating the logic between :py:meth:`validate` and
-    :py:meth:`full_validate` or making the former less efficient than necessary
-    by delegating to the latter.
+    Convenient abstract base class for validators of container-like values that
+    need to report multiple errors for their items without duplicating the logic
+    between :py:meth:`validate` and :py:meth:`full_validate` or making the
+    former less efficient than necessary by delegating to the latter.
 
-    Concrete subclasses need to implement just :py:meth:`_iter_errors` as a
-    generator that:
-    1. Yields all validation errors.
-    2. Raises a :py:class:`_Value` exception if the value is valid. In this case
-       (and only if no errors have been yielded) the returned (possibly adapted)
-       value is the ``args[0]`` of the :py:class:`_Value` exception. If no errors
-       are yielded and no :py:class:`_Value` exception is raised, the input
-       ``value`` is considered valid and returned.
+    Concrete subclasses have to implement :py:meth:`_iter_errors_and_items` as a
+    generator that yields all validation errors and items of the container value.
+    If there are no validation errors and `adapt=True`, the final adapted value
+    is produced by passing the yielded items to :py:meth:`_reduce_items`. The
+    default :py:meth:`_reduce_items` instantiates `value.__class__` with the
+    iterator of items but subclasses can override it if necessary.
     """
 
     def validate(self, value, adapt=True):
-        try:
-            error = next(self._iter_errors(value, adapt, full=False))
-        except self._Value as ex:
-            return ex.args[0]
-        except StopIteration:
-            return value
-        else:
-            raise error
+        return self._validate(value, adapt, full=False)
 
     def full_validate(self, value, adapt=True):
-        errors = []
-        try:
-            for error in self._iter_errors(value, adapt, full=True):
-                errors.append(error)
-        except self._Value as ex:
-            value = ex.args[0]
+        return self._validate(value, adapt, full=True)
 
-        if errors:
-            raise MultipleValidationError(*errors)
+    def _validate(self, value, adapt, full):
+        iterable = self._iter_errors_and_items(value, adapt, full)
+        t1, t2 = itertools.tee(iterable)
+        iter_errors = (x for x in t1 if isinstance(x, ValidationError))
+        if full:
+            multi_error = MultipleValidationError(*iter_errors)
+            if multi_error.errors:
+                raise multi_error
+        else:
+            error = next(iter_errors, None)
+            if error:
+                raise error
+
+        if adapt:
+            iter_items = (x for x in t2 if not isinstance(x, ValidationError))
+            return self._reduce_items(iter_items, value)
 
         return value
 
-    def _iter_errors(self, value, adapt, full):
-        raise NotImplementedError
+    def _reduce_items(self, iterable, value):
+        return value.__class__(iterable)
 
-    class _Value(Exception):
-        pass
+    def _iter_errors_and_items(self, value, adapt, full):
+        raise NotImplementedError
 
 
 def accepts(**schemas):

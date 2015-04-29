@@ -1,13 +1,12 @@
 import collections
 import datetime
 import inspect
-import itertools
 import numbers
 import re
 from six import string_types, iteritems
 from six.moves import zip, map
 
-from .base import Validator, FullValidator, ValidationError, parse
+from .base import Validator, ContainerValidator, ValidationError, parse
 from .errors import get_type_name
 
 
@@ -18,14 +17,6 @@ __all__ = [
     "String", "Pattern", "Date", "Datetime", "Time",
     "HomogeneousSequence", "HeterogeneousSequence", "Mapping", "Object",
 ]
-
-
-def _partition_pairs(iterable):
-    """Partition a (bool, value) iterable into an iterable of false and true values"""
-    t1, t2 = itertools.tee(iterable)
-    false_it = (v for p, v in t1 if not p)
-    true_it = (v for p, v in t2 if p)
-    return false_it, true_it
 
 
 class AnyOf(Validator):
@@ -476,7 +467,7 @@ def _PatternFactory(obj):
         return Pattern(obj)
 
 
-class HomogeneousSequence(FullValidator):
+class HomogeneousSequence(ContainerValidator):
     """A validator that accepts homogeneous, non-fixed size sequences."""
 
     def __init__(self, item_schema=None, min_length=None, max_length=None):
@@ -493,7 +484,7 @@ class HomogeneousSequence(FullValidator):
         self._min_length = min_length
         self._max_length = max_length
 
-    def _iter_errors(self, value, adapt, full):
+    def _iter_errors_and_items(self, value, adapt, full):
         try:
             self._type_validator.validate(value)
         except ValidationError as ex:
@@ -508,25 +499,20 @@ class HomogeneousSequence(FullValidator):
             yield ValidationError("must contain at most %d elements" %
                                   self._max_length, value)
 
-        if self._item_validator is not None:
-            iter_pairs = self._iter_validated_items_and_errors(value, adapt, full)
-            item_errors, items = _partition_pairs(iter_pairs)
-            for item_error in item_errors:
-                yield item_error
-            if adapt:
-                raise self._Value(value.__class__(items))
-
-    def _iter_validated_items_and_errors(self, value, adapt, full):
-        if full:
-            validate_item = self._item_validator.full_validate
+        if self._item_validator is None:
+            for item in value:
+                yield item
         else:
-            validate_item = self._item_validator.validate
+            if full:
+                validate_item = self._item_validator.full_validate
+            else:
+                validate_item = self._item_validator.validate
 
-        for i, item in enumerate(value):
-            try:
-                yield (True, validate_item(item, adapt=adapt))
-            except ValidationError as ex:
-                yield (False, ex.add_context(i))
+            for i, item in enumerate(value):
+                try:
+                    yield validate_item(item, adapt=adapt)
+                except ValidationError as ex:
+                    yield ex.add_context(i)
 
 
 @HomogeneousSequence.register_factory
@@ -539,7 +525,7 @@ def _HomogeneousSequenceFactory(obj):
         return HomogeneousSequence(*obj)
 
 
-class HeterogeneousSequence(FullValidator):
+class HeterogeneousSequence(ContainerValidator):
     """A validator that accepts heterogeneous, fixed size sequences."""
 
     def __init__(self, *item_schemas):
@@ -551,7 +537,7 @@ class HeterogeneousSequence(FullValidator):
                                     reject_types=string_types)
         self._item_validators = list(map(parse, item_schemas))
 
-    def _iter_errors(self, value, adapt, full):
+    def _iter_errors_and_items(self, value, adapt, full):
         try:
             self._type_validator.validate(value)
         except ValidationError as ex:
@@ -562,20 +548,12 @@ class HeterogeneousSequence(FullValidator):
             yield ValidationError("%d items expected, %d found" %
                                   (len(self._item_validators), len(value)), value)
 
-        iter_pairs = self._iter_validated_items_and_errors(value, adapt, full)
-        item_errors, items = _partition_pairs(iter_pairs)
-        for item_error in item_errors:
-            yield item_error
-        if adapt:
-            raise self._Value(value.__class__(items))
-
-    def _iter_validated_items_and_errors(self, value, adapt, full):
         method = 'full_validate' if full else 'validate'
         for i, (validator, item) in enumerate(zip(self._item_validators, value)):
             try:
-                yield (True, getattr(validator, method)(item, adapt=adapt))
+                yield getattr(validator, method)(item, adapt=adapt)
             except ValidationError as ex:
-                yield (False, ex.add_context(i))
+                yield ex.add_context(i)
 
 
 @HeterogeneousSequence.register_factory
@@ -588,7 +566,7 @@ def _HeterogeneousSequenceFactory(obj):
         return HeterogeneousSequence(*obj)
 
 
-class Mapping(FullValidator):
+class Mapping(ContainerValidator):
     """A validator that accepts mappings (:py:class:`collections.Mapping` instances)."""
 
     def __init__(self, key_schema=None, value_schema=None):
@@ -607,21 +585,13 @@ class Mapping(FullValidator):
         else:
             self._value_validator = None
 
-    def _iter_errors(self, value, adapt, full):
+    def _iter_errors_and_items(self, value, adapt, full):
         try:
             self._type_validator.validate(value)
         except ValidationError as ex:
             yield ex
             return
 
-        iter_pairs = self._iter_validated_items_and_errors(value, adapt, full)
-        item_errors, items = _partition_pairs(iter_pairs)
-        for item_error in item_errors:
-            yield item_error
-        if adapt:
-            raise self._Value(dict(items))
-
-    def _iter_validated_items_and_errors(self, value, adapt, full):
         if self._key_validator is None:
             validate_key = None
         elif full:
@@ -641,31 +611,14 @@ class Mapping(FullValidator):
                 try:
                     k = validate_key(k, adapt)
                 except ValidationError as ex:
-                    yield (False, ex)
+                    yield ex
 
             if validate_value is not None:
                 try:
                     v = validate_value(v, adapt)
                 except ValidationError as ex:
-                    yield (False, ex.add_context(k))
+                    yield ex.add_context(k)
 
-            yield (True, (k, v))
-
-    def _iter_validated_items(self, value, adapt):
-        validate_key = validate_value = None
-        if self._key_validator is not None:
-            validate_key = self._key_validator.validate
-        if self._value_validator is not None:
-            validate_value = self._value_validator.validate
-
-        for k, v in iteritems(value):
-            if validate_value is not None:
-                try:
-                    v = validate_value(v, adapt)
-                except ValidationError as ex:
-                    raise ex.add_context(k)
-            if validate_key is not None:
-                k = validate_key(k, adapt)
             yield (k, v)
 
 

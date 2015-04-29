@@ -877,14 +877,14 @@ class TestValidator(unittest.TestCase):
                                "Invalid value 12 (integer): must be string (at opt)")])
 
     def test_multiple_validation_error_message(self):
-        ex = V.MultipleValidationError(
+        ex = V.MultipleValidationError([
             V.ValidationError('More cowbell', 'moo').add_context(0),
-            V.MultipleValidationError(
+            V.MultipleValidationError([
                 V.ValidationError('Less blink', 'blink').add_context('x').add_context('1'),
                 V.ValidationError('More cowbell', 'mooooo').add_context('y').add_context('1'),
-            ),
+            ]),
             V.ValidationError('Boring', 'stuff').add_context(2),
-        )
+        ])
         self.assertEqual(len(ex.errors), 4)
         self.assertEqual(str(ex), "Multiple validation errors:\n"
                                   "- Invalid value 'moo' (str): More cowbell (at 0)\n"
@@ -892,13 +892,13 @@ class TestValidator(unittest.TestCase):
                                   "- Invalid value 'mooooo' (str): More cowbell (at 1['y'])\n"
                                   "- Invalid value 'stuff' (str): Boring (at 2)")
         with self.assertRaises(TypeError):
-            V.MultipleValidationError(
+            V.MultipleValidationError([
                 V.ValidationError('More cowbell'),
-                V.MultipleValidationError(
+                V.MultipleValidationError([
                     ValueError('oops'),
                     V.ValidationError('Less cowbell'),
-                ),
-            )
+                ]),
+            ])
 
     def test_full_validate_single_error(self):
         obj = {"+foo": "number", "?bar": ["integer"]}

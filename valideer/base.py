@@ -211,7 +211,7 @@ class Validator(with_metaclass(_MetaValidator)):
         try:
             return self.validate(value, adapt)
         except ValidationError as ex:
-            raise MultipleValidationError(ex)
+            raise MultipleValidationError([ex])
 
     def is_valid(self, value):
         """Check if the value is valid.
@@ -269,7 +269,7 @@ class ContainerValidator(Validator):
         t1, t2 = itertools.tee(iterable)
         iter_errors = (x for x in t1 if isinstance(x, ValidationError))
         if full:
-            multi_error = MultipleValidationError(*iter_errors)
+            multi_error = MultipleValidationError(iter_errors)
             if multi_error.errors:
                 raise multi_error
         else:

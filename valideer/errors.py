@@ -64,9 +64,9 @@ class ValidationError(ValueError):
 class MultipleValidationError(ValidationError):
     """Encapsulates multiple validation errors for a given value."""
 
-    def __init__(self, *errors):
+    def __init__(self, errors):
         self.errors = []
-        self.add_errors(*errors)
+        self.add_errors(errors)
 
     def to_string(self, repr_value=repr):
         lines = ["Multiple validation errors:"]
@@ -78,7 +78,7 @@ class MultipleValidationError(ValidationError):
             error.add_context(context)
         return self
 
-    def add_errors(self, *errors):
+    def add_errors(self, errors):
         for error in errors:
             if isinstance(error, MultipleValidationError):
                 self.errors.extend(error.errors)

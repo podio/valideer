@@ -287,7 +287,7 @@ class ContainerValidator(Validator):
         return value.__class__(iterable)
 
     def _iter_errors_and_items(self, value, adapt, full):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def accepts(**schemas):

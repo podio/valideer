@@ -795,9 +795,6 @@ class TestValidator(unittest.TestCase):
         class DummyValidator(V.Validator):
             name = "dummy"
 
-            def validate(self, value, adapt=True):
-                return value
-
         self.assertEqual(DummyValidator().humanized_name, "dummy")
         self.assertEqual(V.Nullable(DummyValidator()).humanized_name, "dummy or null")
         self.assertEqual(V.AnyOf("boolean", DummyValidator()).humanized_name,
@@ -930,6 +927,9 @@ class TestValidator(unittest.TestCase):
             "Invalid value 4 (int): must be string (at 1[0])",
             "Invalid value True (bool): must be number (at 1[1])",
         ])
+        self._testFullValidationErrors(obj, {}, errors=[
+            "Invalid value {} (dict): must be Sequence",
+        ])
 
     def test_full_validate_mapping(self):
         obj = V.Mapping("string", V.Mapping("integer", ["number"]))
@@ -947,6 +947,9 @@ class TestValidator(unittest.TestCase):
             "Invalid value 'a' (str): must be integer (at 1)",
             "Invalid value True (bool): must be integer (at x)",
             "Invalid value 'z' (str): must be number (at x[True][1])",
+        ])
+        self._testFullValidationErrors(obj, [], errors=[
+            "Invalid value [] (list): must be Mapping",
         ])
 
     def test_full_validate_object(self):
@@ -1002,12 +1005,11 @@ class TestValidator(unittest.TestCase):
 
     def _testFullValidationErrors(self, obj, value, errors, error_value_repr=repr):
         validator = self.parse(obj)
+        found_errors = []
         try:
             validator.full_validate(value)
         except V.MultipleValidationError as ex:
-            found_errors = ex.errors
-        else:
-            found_errors = []
+            found_errors.extend(ex.errors)
 
         self.assertEqual(len(found_errors), len(errors))
         for found_error, error in zip(found_errors, errors):
@@ -1048,7 +1050,3 @@ class OptionalPropertiesTestValidator(TestValidator):
                                       {"foo": 3},
                                       {"bar": False, "baz": "yo"},
                                       {"bar": True, "foo": 3.1}])
-
-
-if __name__ == '__main__':
-    unittest.main()

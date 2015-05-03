@@ -949,6 +949,36 @@ class TestValidator(unittest.TestCase):
             "Invalid value 'z' (str): must be number (at x[True][1])",
         ])
 
+    def test_full_validate_object(self):
+        obj = {
+            "+foo": "number",
+            "+bar": "string",
+            "?baz": {
+                "?a": "boolean",
+                "?b": V.Nullable("integer", 1),
+            }
+        }
+        value = {"baz": {"a": 1, "x": 4.5}}
+        common_errors = [
+            "Invalid value {'baz': {'a': 1, 'x': 4.5}} (dict): missing required properties: ['foo', 'bar']",
+            "Invalid value 1 (int): must be boolean (at baz['a'])",
+        ]
+
+        self._testFullValidationErrors(obj, value, errors=common_errors)
+
+        with V.parsing(additional_properties=V.Object.REMOVE):
+            self._testFullValidationErrors(obj, value, errors=common_errors)
+
+        with V.parsing(additional_properties=False):
+            self._testFullValidationErrors(obj, value, errors=common_errors + [
+                "Invalid value {'a': 1, 'x': 4.5} (dict): additional properties: ['x'] (at baz)"
+            ])
+
+        with V.parsing(additional_properties="string"):
+            self._testFullValidationErrors(obj, value, errors=common_errors + [
+                "Invalid value 4.5 (float): must be string (at baz['x'])"
+            ])
+
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
         validator = self.parse(obj)

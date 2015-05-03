@@ -622,14 +622,12 @@ class Mapping(ContainerValidator):
             yield (k, v)
 
 
-class Object(Type):
+class Object(ContainerValidator):
     """A validator that accepts json-like objects.
 
     A ``json-like object`` here is meant as a dict with a predefined set of
     "properties", i.e. string keys.
     """
-
-    accept_types = collections.Mapping
 
     REQUIRED_PROPERTIES = False
     ADDITIONAL_PROPERTIES = True
@@ -652,7 +650,7 @@ class Object(Type):
             - ``None`` to use the value of the ``ADDITIONAL_PROPERTIES`` class
               attribute.
         """
-        super(Object, self).__init__()
+        self._type_validator = Type(accept_types=collections.Mapping)
         if additional is None:
             additional = self.ADDITIONAL_PROPERTIES
         if not isinstance(additional, bool) and additional is not self.REMOVE:
@@ -665,49 +663,51 @@ class Object(Type):
         self._all_keys = set(name for name, _ in self._named_validators)
         self._additional = additional
 
-    def validate(self, value, adapt=True):
-        super(Object, self).validate(value)
+    def _iter_errors_and_items(self, value, adapt, full):
+        try:
+            self._type_validator.validate(value)
+        except ValidationError as ex:
+            yield ex
+            return
+
         missing_required = self._required_keys.difference(value)
         if missing_required:
-            raise ValidationError("missing required properties: %s" %
+            yield ValidationError("missing required properties: %s" %
                                   list(missing_required), value)
 
-        result = dict(value) if adapt else None
+        method = 'full_validate' if full else 'validate'
         for name, validator in self._named_validators:
             if name in value:
                 try:
-                    adapted = validator.validate(value[name], adapt)
-                    if result is not None:
-                        result[name] = adapted
+                    adapted = getattr(validator, method)(value[name], adapt=adapt)
+                    if adapt:
+                        yield (name, adapted)
                 except ValidationError as ex:
-                    raise ex.add_context(name)
-            elif result is not None and isinstance(validator, Nullable):
+                    yield ex.add_context(name)
+            elif adapt and isinstance(validator, Nullable):
                 default = validator.default_object_property
                 if default is not Nullable._UNDEFINED:
-                    result[name] = default
+                    yield (name, default)
 
-        if self._additional is not True:
-            all_keys = self._all_keys
-            additional_properties = [k for k in value if k not in all_keys]
-            if additional_properties:
-                if self._additional is False:
-                    raise ValidationError("additional properties: %s" %
-                                          additional_properties, value)
-                elif self._additional is self.REMOVE:
-                    if result is not None:
-                        for name in additional_properties:
-                            del result[name]
-                else:
-                    additional_validate = self._additional.validate
-                    for name in additional_properties:
-                        try:
-                            adapted = additional_validate(value[name], adapt)
-                            if result is not None:
-                                result[name] = adapted
-                        except ValidationError as ex:
-                            raise ex.add_context(name)
-
-        return result
+        additional = self._additional
+        all_keys = self._all_keys
+        additional_properties = [k for k in value if k not in all_keys]
+        if additional_properties and additional is not self.REMOVE:
+            if additional is False:
+                yield ValidationError("additional properties: %s" %
+                                      additional_properties, value)
+            elif additional is True:
+                for name in additional_properties:
+                    yield (name, value[name])
+            else:
+                for name in additional_properties:
+                    try:
+                        adapted = getattr(additional, method)(value[name],
+                                                              adapt=adapt)
+                        if adapt:
+                            yield (name, adapted)
+                    except ValidationError as ex:
+                        yield ex.add_context(name)
 
 
 @Object.register_factory

@@ -2,11 +2,11 @@
 Valideer
 ========
 
-.. image:: https://travis-ci.org/gsakkis/valideer.svg?branch=master
-    :target: https://travis-ci.org/gsakkis/valideer
+.. image:: https://travis-ci.org/podio/valideer.svg?branch=master
+    :target: https://travis-ci.org/podio/valideer
 
-.. image:: https://coveralls.io/repos/gsakkis/valideer/badge.svg?branch=master
-    :target: https://coveralls.io/r/gsakkis/valideer?branch=master
+.. image:: https://coveralls.io/repos/podio/valideer/badge.svg?branch=master
+    :target: https://coveralls.io/r/podio/valideer?branch=master
 
 .. image:: https://pypip.in/status/valideer/badge.svg
     :target: https://pypi.python.org/pypi/valideer/

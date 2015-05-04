@@ -44,7 +44,7 @@ Lightweight data validation and adaptation library for Python.
 Installation
 ------------
 
-Valideer requires Python 2.7. To install run::
+To install run::
 
     pip install valideer
 
@@ -54,25 +54,27 @@ Or for the latest version::
     cd valideer
     python setup.py install
 
-To run the tests you need to install nose_ and optionally coverage_ for coverage
-report::
+You may run the unit tests with::
 
-    $ pip install nose coverage
-    $ nosetests --with-coverage --cover-package=valideer
-	..............................................................................
-	Name                  Stmts   Miss  Cover   Missing
-	---------------------------------------------------
-	valideer                  2      0   100%
-	valideer.base           101      0   100%
-	valideer.validators     335      0   100%
-	---------------------------------------------------
-	TOTAL                   438      0   100%
-	----------------------------------------------------------------------
-	Ran 86 tests in 0.104s
+    $ python setup.py test --quiet
+    running test
+    running egg_info
+    writing dependency_links to valideer.egg-info/dependency_links.txt
+    writing requirements to valideer.egg-info/requires.txt
+    writing valideer.egg-info/PKG-INFO
+    writing top-level names to valideer.egg-info/top_level.txt
+    reading manifest file 'valideer.egg-info/SOURCES.txt'
+    reading manifest template 'MANIFEST.in'
+    writing manifest file 'valideer.egg-info/SOURCES.txt'
+    running build_ext
+    ...........................................................................................................................................................................
+    ----------------------------------------------------------------------
+    Ran 171 tests in 0.106s
 
+    OK
 
-Basic Use
----------
+Basic Usage
+-----------
 
 We'll demonstrate ``valideer`` using the following `JSON schema example`_::
 

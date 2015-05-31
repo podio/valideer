@@ -69,7 +69,7 @@ class MultipleValidationError(ValidationError):
         self.add_errors(errors)
 
     def to_string(self, repr_value=repr):
-        lines = ["Multiple validation errors:"]
+        lines = [""]
         lines.extend("- " + e.to_string(repr_value) for e in self.errors)
         return "\n".join(lines)
 

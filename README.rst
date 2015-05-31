@@ -73,6 +73,7 @@ You may run the unit tests with::
 
     OK
 
+
 Basic Usage
 -----------
 
@@ -181,6 +182,32 @@ typecheck_)::
 	>>> get_total_price(product2)
 	ValidationError: Invalid value {'price': 123, 'id': 1} (dict): missing required properties: ['name'] (at product)
 
+Catching all errors
+###################
+
+The ``validate`` method raises a ``ValidationError`` at the first encountered
+input error. In case one wants to catch all input errors (for example, to show
+them all to the user after validating a web form), the ``full_validate`` method
+raises a ``MultipleValidationError``, a ``ValidationError`` subclass whose
+``errors`` attribute is a (flat) list of all individual errors::
+
+	>>> product3 = {
+	>>>     "id": "1",
+	>>>     "price": -10,
+	>>>     "tags": "foo",
+	>>>     "stock": {
+	>>>         "retail": True,
+	>>>     }
+	>>> }
+
+	>>> validator.full_validate(product3)
+	MultipleValidationError:
+	- Invalid value {'price': -10, 'stock': {'retail': True}, 'id': '1', 'tags': 'foo'} (dict): missing required properties: ['name']
+	- Invalid value '1' (str): must be number (at id)
+	- Invalid value -10 (int): must not be less than 0 (at price)
+	- Invalid value True (bool): must be number (at stock['retail'])
+	- Invalid value 'foo' (str): must be Sequence (at tags)
+
 Adaptation
 ##########
 
@@ -272,7 +299,6 @@ optional are allowed by default. This default can be overriden by calling
 	>>> with V.parsing(additional_properties="string"):
 	...    V.parse(schema).validate(data)
 	ValidationError: Invalid value 12 (int): must be string (at duration['seconds'])
-
 
 Explicit Instantiation
 ######################

@@ -883,7 +883,7 @@ class TestValidator(unittest.TestCase):
             V.ValidationError('Boring', 'stuff').add_context(2),
         ])
         self.assertEqual(len(ex.errors), 4)
-        self.assertEqual(str(ex), "Multiple validation errors:\n"
+        self.assertEqual(str(ex), "\n"
                                   "- Invalid value 'moo' (str): More cowbell (at 0)\n"
                                   "- Invalid value 'blink' (str): Less blink (at 1['x'])\n"
                                   "- Invalid value 'mooooo' (str): More cowbell (at 1['y'])\n"

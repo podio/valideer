@@ -1,10 +1,14 @@
-from .base import Validator, ValidationError, parse, get_type_name
-from .compat import string_types, izip, imap, iteritems
 import collections
 import datetime
 import inspect
 import numbers
 import re
+from six import string_types, iteritems
+from six.moves import zip, map
+
+from .base import Validator, ContainerValidator, ValidationError, parse
+from .errors import get_type_name
+
 
 __all__ = [
     "AnyOf", "AllOf", "ChainOf", "Nullable", "NonNullable",
@@ -24,7 +28,7 @@ class AnyOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = list(imap(parse, schemas))
+        self._validators = list(map(parse, schemas))
 
     def validate(self, value, adapt=True):
         msgs = []
@@ -48,7 +52,7 @@ class AllOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = list(imap(parse, schemas))
+        self._validators = list(map(parse, schemas))
 
     def validate(self, value, adapt=True):
         result = value
@@ -68,7 +72,7 @@ class ChainOf(Validator):
     """
 
     def __init__(self, *schemas):
-        self._validators = list(imap(parse, schemas))
+        self._validators = list(map(parse, schemas))
 
     def validate(self, value, adapt=True):
         for validator in self._validators:
@@ -192,7 +196,7 @@ class Enum(Validator):
 
     @property
     def humanized_name(self):
-        return "one of {%s}" % ", ".join(list(imap(repr, self.values)))
+        return "one of {%s}" % ", ".join(list(map(repr, self.values)))
 
 
 class Condition(Validator):
@@ -463,18 +467,16 @@ def _PatternFactory(obj):
         return Pattern(obj)
 
 
-class HomogeneousSequence(Type):
+class HomogeneousSequence(ContainerValidator):
     """A validator that accepts homogeneous, non-fixed size sequences."""
-
-    accept_types = collections.Sequence
-    reject_types = string_types
 
     def __init__(self, item_schema=None, min_length=None, max_length=None):
         """Instantiate a :py:class:`HomogeneousSequence` validator.
 
         :param item_schema: If not None, the schema of the items of the list.
         """
-        super(HomogeneousSequence, self).__init__()
+        self._type_validator = Type(accept_types=collections.Sequence,
+                                    reject_types=string_types)
         if item_schema is not None:
             self._item_validator = parse(item_schema)
         else:
@@ -482,28 +484,35 @@ class HomogeneousSequence(Type):
         self._min_length = min_length
         self._max_length = max_length
 
-    def validate(self, value, adapt=True):
-        super(HomogeneousSequence, self).validate(value)
-        if self._min_length is not None and len(value) < self._min_length:
-            raise ValidationError("must contain at least %d elements" %
-                                  self._min_length, value)
-        if self._max_length is not None and len(value) > self._max_length:
-            raise ValidationError("must contain at most %d elements" %
-                                  self._max_length, value)
-        if self._item_validator is None:
-            return value
-        if adapt:
-            return value.__class__(self._iter_validated_items(value, adapt))
-        for _ in self._iter_validated_items(value, adapt):
-            pass
+    def _iter_errors_and_items(self, value, adapt, full):
+        try:
+            self._type_validator.validate(value)
+        except ValidationError as ex:
+            yield ex
+            return
 
-    def _iter_validated_items(self, value, adapt):
-        validate_item = self._item_validator.validate
-        for i, item in enumerate(value):
-            try:
-                yield validate_item(item, adapt)
-            except ValidationError as ex:
-                raise ex.add_context(i)
+        if self._min_length is not None and len(value) < self._min_length:
+            yield ValidationError("must contain at least %d elements" %
+                                  self._min_length, value)
+
+        if self._max_length is not None and len(value) > self._max_length:
+            yield ValidationError("must contain at most %d elements" %
+                                  self._max_length, value)
+
+        if self._item_validator is None:
+            for item in value:
+                yield item
+        else:
+            if full:
+                validate_item = self._item_validator.full_validate
+            else:
+                validate_item = self._item_validator.validate
+
+            for i, item in enumerate(value):
+                try:
+                    yield validate_item(item, adapt=adapt)
+                except ValidationError as ex:
+                    yield ex.add_context(i)
 
 
 @HomogeneousSequence.register_factory
@@ -516,36 +525,35 @@ def _HomogeneousSequenceFactory(obj):
         return HomogeneousSequence(*obj)
 
 
-class HeterogeneousSequence(Type):
+class HeterogeneousSequence(ContainerValidator):
     """A validator that accepts heterogeneous, fixed size sequences."""
-
-    accept_types = collections.Sequence
-    reject_types = string_types
 
     def __init__(self, *item_schemas):
         """Instantiate a :py:class:`HeterogeneousSequence` validator.
 
         :param item_schemas: The schema of each element of the the tuple.
         """
-        super(HeterogeneousSequence, self).__init__()
-        self._item_validators = list(imap(parse, item_schemas))
+        self._type_validator = Type(accept_types=collections.Sequence,
+                                    reject_types=string_types)
+        self._item_validators = list(map(parse, item_schemas))
 
-    def validate(self, value, adapt=True):
-        super(HeterogeneousSequence, self).validate(value)
+    def _iter_errors_and_items(self, value, adapt, full):
+        try:
+            self._type_validator.validate(value)
+        except ValidationError as ex:
+            yield ex
+            return
+
         if len(value) != len(self._item_validators):
-            raise ValidationError("%d items expected, %d found" %
+            yield ValidationError("%d items expected, %d found" %
                                   (len(self._item_validators), len(value)), value)
-        if adapt:
-            return value.__class__(self._iter_validated_items(value, adapt))
-        for _ in self._iter_validated_items(value, adapt):
-            pass
 
-    def _iter_validated_items(self, value, adapt):
-        for i, (validator, item) in enumerate(izip(self._item_validators, value)):
+        method = 'full_validate' if full else 'validate'
+        for i, (validator, item) in enumerate(zip(self._item_validators, value)):
             try:
-                yield validator.validate(item, adapt)
+                yield getattr(validator, method)(item, adapt=adapt)
             except ValidationError as ex:
-                raise ex.add_context(i)
+                yield ex.add_context(i)
 
 
 @HeterogeneousSequence.register_factory
@@ -558,10 +566,8 @@ def _HeterogeneousSequenceFactory(obj):
         return HeterogeneousSequence(*obj)
 
 
-class Mapping(Type):
+class Mapping(ContainerValidator):
     """A validator that accepts mappings (:py:class:`collections.Mapping` instances)."""
-
-    accept_types = collections.Mapping
 
     def __init__(self, key_schema=None, value_schema=None):
         """Instantiate a :py:class:`Mapping` validator.
@@ -569,7 +575,7 @@ class Mapping(Type):
         :param key_schema: If not None, the schema of the dict keys.
         :param value_schema: If not None, the schema of the dict values.
         """
-        super(Mapping, self).__init__()
+        self._type_validator = Type(accept_types=collections.Mapping)
         if key_schema is not None:
             self._key_validator = parse(key_schema)
         else:
@@ -579,38 +585,49 @@ class Mapping(Type):
         else:
             self._value_validator = None
 
-    def validate(self, value, adapt=True):
-        super(Mapping, self).validate(value)
-        if adapt:
-            return dict(self._iter_validated_items(value, adapt))
-        for _ in self._iter_validated_items(value, adapt):
-            pass
+    def _iter_errors_and_items(self, value, adapt, full):
+        try:
+            self._type_validator.validate(value)
+        except ValidationError as ex:
+            yield ex
+            return
 
-    def _iter_validated_items(self, value, adapt):
-        validate_key = validate_value = None
-        if self._key_validator is not None:
+        if self._key_validator is None:
+            validate_key = None
+        elif full:
+            validate_key = self._key_validator.full_validate
+        else:
             validate_key = self._key_validator.validate
-        if self._value_validator is not None:
+
+        if self._value_validator is None:
+            validate_value = None
+        elif full:
+            validate_value = self._value_validator.full_validate
+        else:
             validate_value = self._value_validator.validate
+
         for k, v in iteritems(value):
+            if validate_key is not None:
+                try:
+                    k = validate_key(k, adapt)
+                except ValidationError as ex:
+                    yield ex
+
             if validate_value is not None:
                 try:
                     v = validate_value(v, adapt)
                 except ValidationError as ex:
-                    raise ex.add_context(k)
-            if validate_key is not None:
-                k = validate_key(k, adapt)
+                    yield ex.add_context(k)
+
             yield (k, v)
 
 
-class Object(Type):
+class Object(ContainerValidator):
     """A validator that accepts json-like objects.
 
     A ``json-like object`` here is meant as a dict with a predefined set of
     "properties", i.e. string keys.
     """
-
-    accept_types = collections.Mapping
 
     REQUIRED_PROPERTIES = False
     ADDITIONAL_PROPERTIES = True
@@ -633,7 +650,7 @@ class Object(Type):
             - ``None`` to use the value of the ``ADDITIONAL_PROPERTIES`` class
               attribute.
         """
-        super(Object, self).__init__()
+        self._type_validator = Type(accept_types=collections.Mapping)
         if additional is None:
             additional = self.ADDITIONAL_PROPERTIES
         if not isinstance(additional, bool) and additional is not self.REMOVE:
@@ -646,49 +663,51 @@ class Object(Type):
         self._all_keys = set(name for name, _ in self._named_validators)
         self._additional = additional
 
-    def validate(self, value, adapt=True):
-        super(Object, self).validate(value)
+    def _iter_errors_and_items(self, value, adapt, full):
+        try:
+            self._type_validator.validate(value)
+        except ValidationError as ex:
+            yield ex
+            return
+
         missing_required = self._required_keys.difference(value)
         if missing_required:
-            raise ValidationError("missing required properties: %s" %
+            yield ValidationError("missing required properties: %s" %
                                   list(missing_required), value)
 
-        result = dict(value) if adapt else None
+        method = 'full_validate' if full else 'validate'
         for name, validator in self._named_validators:
             if name in value:
                 try:
-                    adapted = validator.validate(value[name], adapt)
-                    if result is not None:
-                        result[name] = adapted
+                    adapted = getattr(validator, method)(value[name], adapt=adapt)
+                    if adapt:
+                        yield (name, adapted)
                 except ValidationError as ex:
-                    raise ex.add_context(name)
-            elif result is not None and isinstance(validator, Nullable):
+                    yield ex.add_context(name)
+            elif adapt and isinstance(validator, Nullable):
                 default = validator.default_object_property
                 if default is not Nullable._UNDEFINED:
-                    result[name] = default
+                    yield (name, default)
 
-        if self._additional is not True:
-            all_keys = self._all_keys
-            additional_properties = [k for k in value if k not in all_keys]
-            if additional_properties:
-                if self._additional is False:
-                    raise ValidationError("additional properties: %s" %
-                                          additional_properties, value)
-                elif self._additional is self.REMOVE:
-                    if result is not None:
-                        for name in additional_properties:
-                            del result[name]
-                else:
-                    additional_validate = self._additional.validate
-                    for name in additional_properties:
-                        try:
-                            adapted = additional_validate(value[name], adapt)
-                            if result is not None:
-                                result[name] = adapted
-                        except ValidationError as ex:
-                            raise ex.add_context(name)
-
-        return result
+        additional = self._additional
+        all_keys = self._all_keys
+        additional_properties = [k for k in value if k not in all_keys]
+        if additional_properties and additional is not self.REMOVE:
+            if additional is False:
+                yield ValidationError("additional properties: %s" %
+                                      additional_properties, value)
+            elif additional is True:
+                for name in additional_properties:
+                    yield (name, value[name])
+            else:
+                for name in additional_properties:
+                    try:
+                        adapted = getattr(additional, method)(value[name],
+                                                              adapt=adapt)
+                        if adapt:
+                            yield (name, adapted)
+                    except ValidationError as ex:
+                        yield ex.add_context(name)
 
 
 @Object.register_factory
@@ -726,7 +745,7 @@ def _ObjectFactory(obj, required_properties=None, additional_properties=None):
 def _format_types(types):
     if inspect.isclass(types):
         types = (types,)
-    names = list(imap(get_type_name, types))
+    names = list(map(get_type_name, types))
     s = names[-1]
     if len(names) > 1:
         s = ", ".join(names[:-1]) + " or " + s

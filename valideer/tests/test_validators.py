@@ -5,8 +5,13 @@ import collections
 import json
 import re
 import unittest
+from six import string_types, integer_types, binary_type, text_type, PY3
+from six.moves import xrange, zip
+
 import valideer as V
-from valideer.compat import long, unicode, xrange, string_types, int_types
+
+if PY3:
+    long = int
 
 
 class Fraction(V.Type):
@@ -29,7 +34,7 @@ class TestValidator(unittest.TestCase):
 
     def setUp(self):
         V.Object.REQUIRED_PROPERTIES = True
-        V.base.reset_type_names()
+        V.reset_type_names()
         self.complex_validator = self.parse({
             "n": "number",
             "?i": V.Nullable("integer", 0),
@@ -39,7 +44,7 @@ class TestValidator(unittest.TestCase):
             "?s": V.String(min_length=1, max_length=8),
             "?p": V.Nullable(re.compile(r"\d{1,4}$")),
             "?l": [{"+s2": "string"}],
-            "?t": (unicode, "number"),
+            "?t": (text_type, "number"),
             "?h": V.Mapping(int, ["string"]),
             "?o": V.NonNullable({"+i2": "integer"}),
         })
@@ -47,7 +52,7 @@ class TestValidator(unittest.TestCase):
     def test_none(self):
         for obj in ["boolean", "integer", "number", "string",
                     V.HomogeneousSequence, V.HeterogeneousSequence,
-                    V.Mapping, V.Object, int, float, str, unicode,
+                    V.Mapping, V.Object, int, float, binary_type, text_type,
                     Fraction, Fraction(), Gender, Gender()]:
             self.assertFalse(self.parse(obj).is_valid(None))
 
@@ -762,7 +767,7 @@ class TestValidator(unittest.TestCase):
         ]:
             adapted = self.complex_validator.validate(value)
             self.assertTrue(isinstance(adapted["n"], (int, long, float, Decimal)))
-            self.assertTrue(isinstance(adapted["i"], int_types))
+            self.assertTrue(isinstance(adapted["i"], integer_types))
             self.assertTrue(adapted.get("b") is None or isinstance(adapted["b"], bool))
             self.assertTrue(adapted.get("d") is None or isinstance(adapted["d"], (date, datetime)))
             self.assertTrue(adapted.get("e") is None or adapted["e"] in "rgb")
@@ -775,7 +780,7 @@ class TestValidator(unittest.TestCase):
                                     for item in adapted["l"]))
             if adapted.get("t") is not None:
                 self.assertEqual(len(adapted["t"]), 2)
-                self.assertTrue(isinstance(adapted["t"][0], unicode))
+                self.assertTrue(isinstance(adapted["t"][0], text_type))
                 self.assertTrue(isinstance(adapted["t"][1], float))
             if adapted.get("h") is not None:
                 self.assertTrue(all(isinstance(key, int)
@@ -784,14 +789,11 @@ class TestValidator(unittest.TestCase):
                                     for value in adapted["h"].values()
                                     for value_item in value))
             if adapted.get("o") is not None:
-                self.assertTrue(isinstance(adapted["o"]["i2"], int_types))
+                self.assertTrue(isinstance(adapted["o"]["i2"], integer_types))
 
     def test_humanized_names(self):
         class DummyValidator(V.Validator):
             name = "dummy"
-
-            def validate(self, value, adapt=True):
-                return value
 
         self.assertEqual(DummyValidator().humanized_name, "dummy")
         self.assertEqual(V.Nullable(DummyValidator()).humanized_name, "dummy or null")
@@ -846,7 +848,7 @@ class TestValidator(unittest.TestCase):
         V.set_name_for_types("null", type(None))
         V.set_name_for_types("integer", int, long)
         V.set_name_for_types("number", float)
-        V.set_name_for_types("string", str, unicode)
+        V.set_name_for_types("string", binary_type, text_type)
         V.set_name_for_types("array", list, collections.Sequence)
         V.set_name_for_types("object", dict, collections.Mapping)
 
@@ -871,6 +873,115 @@ class TestValidator(unittest.TestCase):
                               ({"foo": 3, "opt": 12},
                                "Invalid value 12 (integer): must be string (at opt)")])
 
+    def test_multiple_validation_error_message(self):
+        ex = V.MultipleValidationError([
+            V.ValidationError('More cowbell', 'moo').add_context(0),
+            V.MultipleValidationError([
+                V.ValidationError('Less blink', 'blink').add_context('x').add_context('1'),
+                V.ValidationError('More cowbell', 'mooooo').add_context('y').add_context('1'),
+            ]),
+            V.ValidationError('Boring', 'stuff').add_context(2),
+        ])
+        self.assertEqual(len(ex.errors), 4)
+        self.assertEqual(str(ex), "\n"
+                                  "- Invalid value 'moo' (str): More cowbell (at 0)\n"
+                                  "- Invalid value 'blink' (str): Less blink (at 1['x'])\n"
+                                  "- Invalid value 'mooooo' (str): More cowbell (at 1['y'])\n"
+                                  "- Invalid value 'stuff' (str): Boring (at 2)")
+        with self.assertRaises(TypeError):
+            V.MultipleValidationError([
+                V.ValidationError('More cowbell'),
+                V.MultipleValidationError([
+                    ValueError('oops'),
+                    V.ValidationError('Less cowbell'),
+                ]),
+            ])
+
+    def test_full_validate_single_error(self):
+        obj = {"+foo": "number", "?bar": ["integer"]}
+        self._testFullValidationErrors(obj, 42,
+            ["Invalid value 42 (int): must be Mapping"])
+        self._testFullValidationErrors(obj, {},
+            ["Invalid value {} (dict): missing required properties: ['foo']"])
+        self._testFullValidationErrors(obj, {"foo": "3"},
+            ["Invalid value '3' (str): must be number (at foo)"])
+        self._testFullValidationErrors(obj, {"foo": 3, "bar": None},
+            ["Invalid value None (NoneType): must be Sequence (at bar)"])
+        self._testFullValidationErrors(obj, {"foo": 3, "bar": [1, "2", 3]},
+            ["Invalid value '2' (str): must be integer (at bar[1])"])
+
+    def test_full_validate_homogeneous_sequence(self):
+        obj = [{"foo": ["string"]}]
+        value = [1, {"foo": 2.5}, {"foo": ["x", True, "y"]}]
+        self._testFullValidationErrors(obj, value, errors=[
+            "Invalid value 1 (int): must be Mapping (at 0)",
+            "Invalid value 2.5 (float): must be Sequence (at 1['foo'])",
+            "Invalid value True (bool): must be string (at 2['foo'][1])",
+        ])
+
+    def test_full_validate_heterogeneous_sequence(self):
+        obj = ("integer", ("string", "number"))
+        value = ("3", (4, True))
+        self._testFullValidationErrors(obj, value, errors=[
+            "Invalid value '3' (str): must be integer (at 0)",
+            "Invalid value 4 (int): must be string (at 1[0])",
+            "Invalid value True (bool): must be number (at 1[1])",
+        ])
+        self._testFullValidationErrors(obj, {}, errors=[
+            "Invalid value {} (dict): must be Sequence",
+        ])
+
+    def test_full_validate_mapping(self):
+        obj = V.Mapping("string", V.Mapping("integer", ["number"]))
+        value = {
+            1: {
+                "a": []
+            },
+            "x": {
+                0: [4.2, -1],
+                True: [1, "z", 2]
+            }
+        }
+        self._testFullValidationErrors(obj, value, errors=[
+            "Invalid value 1 (int): must be string",
+            "Invalid value 'a' (str): must be integer (at 1)",
+            "Invalid value True (bool): must be integer (at x)",
+            "Invalid value 'z' (str): must be number (at x[True][1])",
+        ])
+        self._testFullValidationErrors(obj, [], errors=[
+            "Invalid value [] (list): must be Mapping",
+        ])
+
+    def test_full_validate_object(self):
+        obj = {
+            "+foo": "number",
+            "+bar": "string",
+            "?baz": {
+                "?a": "boolean",
+                "?b": V.Nullable("integer", 1),
+            }
+        }
+        value = {"baz": {"a": 1, "x": 4.5}}
+        common_errors = [
+            "Invalid value {'baz': {'a': 1, 'x': 4.5}} (dict): missing required properties: ['foo', 'bar']",
+            "Invalid value 1 (int): must be boolean (at baz['a'])",
+        ]
+
+        self._testFullValidationErrors(obj, value, errors=common_errors)
+
+        with V.parsing(additional_properties=V.Object.REMOVE):
+            self._testFullValidationErrors(obj, value, errors=common_errors)
+
+        with V.parsing(additional_properties=False):
+            self._testFullValidationErrors(obj, value, errors=common_errors + [
+                "Invalid value {'a': 1, 'x': 4.5} (dict): additional properties: ['x'] (at baz)"
+            ])
+
+        with V.parsing(additional_properties="string"):
+            self._testFullValidationErrors(obj, value, errors=common_errors + [
+                "Invalid value 4.5 (float): must be string (at baz['x'])"
+            ])
+
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
         validator = self.parse(obj)
@@ -890,7 +1001,20 @@ class TestValidator(unittest.TestCase):
                 validator.validate(value)
             except V.ValidationError as ex:
                 error_repr = ex.to_string(error_value_repr)
-                self.assertEqual(error_repr, error, "Actual error: %r" % error_repr)
+                self.assertEqual(error_repr, error)
+
+    def _testFullValidationErrors(self, obj, value, errors, error_value_repr=repr):
+        validator = self.parse(obj)
+        found_errors = []
+        try:
+            validator.full_validate(value)
+        except V.MultipleValidationError as ex:
+            found_errors.extend(ex.errors)
+
+        self.assertEqual(len(found_errors), len(errors))
+        for found_error, error in zip(found_errors, errors):
+            found_error_repr = found_error.to_string(error_value_repr)
+            self.assertEqual(found_error_repr, error)
 
 
 class TestValidatorModuleParse(TestValidator):
@@ -912,7 +1036,7 @@ class OptionalPropertiesTestValidator(TestValidator):
             "s": V.String(min_length=1, max_length=8),
             "p": V.Nullable(re.compile(r"\d{1,4}$")),
             "l": [{"+s2": "string"}],
-            "t": (unicode, "number"),
+            "t": (text_type, "number"),
             "h": V.Mapping(int, ["string"]),
             "o": V.NonNullable({"+i2": "integer"}),
         })
@@ -926,7 +1050,3 @@ class OptionalPropertiesTestValidator(TestValidator):
                                       {"foo": 3},
                                       {"bar": False, "baz": "yo"},
                                       {"bar": True, "foo": 3.1}])
-
-
-if __name__ == '__main__':
-    unittest.main()

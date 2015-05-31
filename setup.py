@@ -11,7 +11,7 @@ setup(
     author="George Sakkis",
     author_email="george.sakkis@gmail.com",
     packages=find_packages(),
-    install_requires=["decorator"],
+    install_requires=["decorator", "six"],
     test_suite="valideer.tests",
     platforms=["any"],
     keywords="validation adaptation typechecking jsonschema",

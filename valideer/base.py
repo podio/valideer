@@ -1,60 +1,21 @@
 import inspect
+import itertools
 from contextlib import contextmanager
 from threading import RLock
 from decorator import decorator
-from .compat import with_metaclass
+
+from six import with_metaclass
+from .errors import SchemaError, ValidationError, MultipleValidationError
+
 
 __all__ = [
-    "ValidationError", "SchemaError", "Validator", "accepts", "returns", "adapts",
     "parse", "parsing", "register", "register_factory",
-    "set_name_for_types", "reset_type_names",
+    "Validator", "accepts", "returns", "adapts",
 ]
 
 _NAMED_VALIDATORS = {}
 _VALIDATOR_FACTORIES = []
 _VALIDATOR_FACTORIES_LOCK = RLock()
-
-
-class SchemaError(Exception):
-    """An object cannot be parsed as a validator."""
-
-
-class ValidationError(ValueError):
-    """A value is invalid for a given validator."""
-
-    _UNDEFINED = object()
-
-    def __init__(self, msg, value=_UNDEFINED):
-        self.msg = msg
-        self.value = value
-        self.context = []
-        super(ValidationError, self).__init__()
-
-    def __str__(self):
-        return self.to_string()
-
-    @property
-    def message(self):
-        return self.to_string()
-
-    @property
-    def args(self):
-        return (self.to_string(),)
-
-    def to_string(self, repr_value=repr):
-        msg = self.msg
-        if self.value is not self._UNDEFINED:
-            msg = "Invalid value %s (%s): %s" % (repr_value(self.value),
-                                                 get_type_name(self.value.__class__),
-                                                 msg)
-        if self.context:
-            msg += " (at %s)" % "".join("[%r]" % context if i > 0 else str(context)
-                                        for i, context in enumerate(reversed(self.context)))
-        return msg
-
-    def add_context(self, context):
-        self.context.append(context)
-        return self
 
 
 def parse(obj, required_properties=None, additional_properties=None):
@@ -206,8 +167,7 @@ class _MetaValidator(type):
         return validator_type
 
 
-@with_metaclass(_MetaValidator)
-class Validator(object):
+class Validator(with_metaclass(_MetaValidator)):
     """Abstract base class of all validators.
 
     Concrete subclasses must implement :py:meth:`validate`. A subclass may optionally
@@ -218,7 +178,9 @@ class Validator(object):
     name = None
 
     def validate(self, value, adapt=True):
-        """Check if ``value`` is valid and if so adapt it.
+        """
+        Check if ``value`` is valid and if so adapt it, otherwise raise a
+        ``ValidationError`` for the first encountered error.
 
         :param adapt: If ``False``, it indicates that the caller is interested
             only on whether ``value`` is valid, not on adapting it. This is
@@ -229,6 +191,27 @@ class Validator(object):
         :returns: The adapted value if ``adapt`` is ``True``, otherwise anything.
         """
         raise NotImplementedError
+
+    def full_validate(self, value, adapt=True):
+        """
+        Same as :py:meth:`validate` but raise :py:class:`MultipleValidationError`
+        that holds all validation errors if ``value`` is invalid.
+
+        The default implementation simply calls :py:meth:`validate` and wraps a
+        :py:class:`ValidationError` into a :py:class:`MultipleValidationError`.
+
+        :param adapt: If ``False``, it indicates that the caller is interested
+            only on whether ``value`` is valid, not on adapting it. This is
+            essentially an optimization hint for cases that validation can be
+            done more efficiently than adaptation.
+
+        :raises MultipleValidationError: If ``value`` is invalid.
+        :returns: The adapted value if ``adapt`` is ``True``, otherwise anything.
+        """
+        try:
+            return self.validate(value, adapt)
+        except ValidationError as ex:
+            raise MultipleValidationError([ex])
 
     def is_valid(self, value):
         """Check if the value is valid.
@@ -258,6 +241,53 @@ class Validator(object):
     parse = staticmethod(parse)
     register = staticmethod(register)
     register_factory = staticmethod(register_factory)
+
+
+class ContainerValidator(Validator):
+    """
+    Convenient abstract base class for validators of container-like values that
+    need to report multiple errors for their items without duplicating the logic
+    between :py:meth:`validate` and :py:meth:`full_validate` or making the
+    former less efficient than necessary by delegating to the latter.
+
+    Concrete subclasses have to implement :py:meth:`_iter_errors_and_items` as a
+    generator that yields all validation errors and items of the container value.
+    If there are no validation errors and `adapt=True`, the final adapted value
+    is produced by passing the yielded items to :py:meth:`_reduce_items`. The
+    default :py:meth:`_reduce_items` instantiates `value.__class__` with the
+    iterator of items but subclasses can override it if necessary.
+    """
+
+    def validate(self, value, adapt=True):
+        return self._validate(value, adapt, full=False)
+
+    def full_validate(self, value, adapt=True):
+        return self._validate(value, adapt, full=True)
+
+    def _validate(self, value, adapt, full):
+        iterable = self._iter_errors_and_items(value, adapt, full)
+        t1, t2 = itertools.tee(iterable)
+        iter_errors = (x for x in t1 if isinstance(x, ValidationError))
+        if full:
+            multi_error = MultipleValidationError(iter_errors)
+            if multi_error.errors:
+                raise multi_error
+        else:
+            error = next(iter_errors, None)
+            if error:
+                raise error
+
+        if adapt:
+            iter_items = (x for x in t2 if not isinstance(x, ValidationError))
+            return self._reduce_items(iter_items, value)
+
+        return value
+
+    def _reduce_items(self, iterable, value):
+        return value.__class__(iterable)
+
+    def _iter_errors_and_items(self, value, adapt, full):
+        raise NotImplementedError  # pragma: no cover
 
 
 def accepts(**schemas):
@@ -335,20 +365,3 @@ def adapts(**schemas):
         return func(*adapted_posargs, **adapted_keywords)
 
     return adapting
-
-
-_TYPE_NAMES = {}
-
-
-def set_name_for_types(name, *types):
-    """Associate one or more types with an alternative human-friendly name."""
-    for t in types:
-        _TYPE_NAMES[t] = name
-
-
-def reset_type_names():
-    _TYPE_NAMES.clear()
-
-
-def get_type_name(type):
-    return _TYPE_NAMES.get(type) or type.__name__

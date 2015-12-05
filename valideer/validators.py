@@ -692,35 +692,26 @@ class Object(Type):
 
 
 @Object.register_factory
-def _ObjectFactory(obj, required_properties=None, additional_properties=None):
+def _ObjectFactory(obj):
     """Parse a python ``{name: schema}`` dict as an :py:class:`Object` instance.
 
     - A property name prepended by "+" is required
     - A property name prepended by "?" is optional
-    - Any other property is:
-      - required if ``required_properties`` is True
-        or
-        ``required_properties`` is None and :py:attr:`Object.REQUIRED_PROPERTIES`
-      - optional if ``required_properties`` is False
-        or
-        ``required_properties`` is None and ``not`` :py:attr:`Object.REQUIRED_PROPERTIES`
-
-    :param additional_properties: The ``additional`` parameter to :py:class:`Object`.
+    - Any other property is required if :py:attr:`Object.REQUIRED_PROPERTIES`
+      is True else it's optional
     """
     if isinstance(obj, dict):
-        if required_properties is None:
-            required_properties = Object.REQUIRED_PROPERTIES
         optional, required = {}, {}
         for key, value in iteritems(obj):
             if key.startswith("+"):
                 required[key[1:]] = value
             elif key.startswith("?"):
                 optional[key[1:]] = value
-            elif required_properties:
+            elif Object.REQUIRED_PROPERTIES:
                 required[key] = value
             else:
                 optional[key] = value
-        return Object(optional, required, additional_properties)
+        return Object(optional, required)
 
 
 def _format_types(types):

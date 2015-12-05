@@ -874,23 +874,19 @@ class TestValidator(unittest.TestCase):
     def _testValidation(self, obj, invalid=(), valid=(), adapted=(), errors=(),
                         error_value_repr=repr):
         validator = self.parse(obj)
-        for value in invalid:
-            self.assertFalse(validator.is_valid(value))
-            self.assertRaises(V.ValidationError, validator.validate, value, adapt=False)
-        for value in valid:
-            validator.validate(value)
-            self.assertTrue(validator.is_valid(value))
-            self.assertEqual(validator.validate(value), value)
-        for from_value, to_value in adapted:
-            validator.validate(from_value, adapt=False)
+        for from_value, to_value in [(value, value) for value in valid] + list(adapted):
             self.assertTrue(validator.is_valid(from_value))
-            self.assertEqual(validator.validate(from_value), to_value)
-        for value, error in errors:
-            try:
-                validator.validate(value)
-            except V.ValidationError as ex:
-                error_repr = ex.to_string(error_value_repr)
-                self.assertEqual(error_repr, error, "Actual error: %r" % error_repr)
+            validator.validate(from_value, adapt=False)
+            self.assertEqual(validator.validate(from_value, adapt=True), to_value)
+        for value, error in [(value, None) for value in invalid] + list(errors):
+            self.assertFalse(validator.is_valid(value))
+            for adapt in True, False:
+                try:
+                    validator.validate(value, adapt=adapt)
+                except V.ValidationError as ex:
+                    if error:
+                        error_repr = ex.to_string(error_value_repr)
+                        self.assertEqual(error_repr, error, "Actual error: %r" % error_repr)
 
 
 class TestValidatorModuleParse(TestValidator):

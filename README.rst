@@ -215,8 +215,8 @@ for adapting function inputs::
 	>>> get_sum_price({"prices": ["2", 1, None]})
 	ValidationError: Invalid value None (NoneType): float() argument must be a string or a number (at json['prices'][2])
 
-Required and additional object properties
-#########################################
+Required and optional object properties
+#######################################
 
 By default object properties are considered optional unless they start with "+".
 This default can be inverted by using the ``parsing`` context manager with
@@ -244,12 +244,34 @@ is equivalent to::
     	    }
     	})
 
-Similarly, additional properties that are not specified as either required or
-optional are allowed by default. This default can be overriden by calling
-``parsing`` with ``additional_properties=``
+Ignoring optional object property errors
+########################################
 
-- ``False`` to disallow all additional properties, or
-- ``Object.REMOVE`` to remove all additional properties from the adapted value, or
+By default an invalid object property value raises ``ValidationError``,
+regardless of whether it's required or optional. It is possible to ignore invalid
+values for optional properties by using the ``parsing`` context manager with
+``ignore_optional_property_errors=True``::
+
+    >>> schema = {
+    ...     "+name": "string",
+    ...     "price": "number",
+    ... }
+    >>> data = {"name": "wine", "price": "12.50"}
+    >>> V.parse(schema).validate(data)
+    valideer.base.ValidationError: Invalid value '12.50' (str): must be number (at price)
+    >>> with V.parsing(ignore_optional_property_errors=True):
+    ...     print V.parse(schema).validate(data)
+    {'name': 'wine'}
+
+Additional object properties
+############################
+
+Any properties that are not specified as either required or optional are allowed
+by default. This default can be overriden by calling ``parsing`` with
+``additional_properties=``
+
+- ``False`` to disallow all additional properties
+- ``Object.REMOVE`` to remove all additional properties from the adapted value
 - any validator or parseable schema to validate all additional property
   values using this schema::
 

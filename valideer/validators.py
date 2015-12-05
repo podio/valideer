@@ -614,9 +614,11 @@ class Object(Type):
 
     REQUIRED_PROPERTIES = False
     ADDITIONAL_PROPERTIES = True
+    IGNORE_OPTIONAL_PROPERTY_ERRORS = False
     REMOVE = object()
 
-    def __init__(self, optional={}, required={}, additional=None):
+    def __init__(self, optional={}, required={}, additional=None,
+                 ignore_optional_errors=None):
         """Instantiate an Object validator.
 
         :param optional: The schema of optional properties, specified as a
@@ -632,10 +634,19 @@ class Object(Type):
               adapted object.
             - ``None`` to use the value of the ``ADDITIONAL_PROPERTIES`` class
               attribute.
+        :param ignore_optional_errors: Determines if invalid optional properties
+            are ignored:
+
+            - ``True`` invalid optional properties are ignored.
+            - ``False`` invalid optional properties raise ValidationError.
+            - ``None`` use the value of the ``IGNORE_OPTIONAL_PROPERTY_ERRORS``
+              class attribute.
         """
         super(Object, self).__init__()
         if additional is None:
             additional = self.ADDITIONAL_PROPERTIES
+        if ignore_optional_errors is None:
+            ignore_optional_errors = self.IGNORE_OPTIONAL_PROPERTY_ERRORS
         if not isinstance(additional, bool) and additional is not self.REMOVE:
             additional = parse(additional)
         self._named_validators = [
@@ -645,6 +656,7 @@ class Object(Type):
         self._required_keys = set(required)
         self._all_keys = set(name for name, _ in self._named_validators)
         self._additional = additional
+        self._ignore_optional_errors = ignore_optional_errors
 
     def validate(self, value, adapt=True):
         super(Object, self).validate(value)
@@ -661,7 +673,13 @@ class Object(Type):
                     if result is not None:
                         result[name] = adapted
                 except ValidationError as ex:
-                    raise ex.add_context(name)
+                    if (not self._ignore_optional_errors
+                        or name in self._required_keys):
+                        raise ex.add_context(name)
+                    elif result is not None:
+                        del result[name]
+                    else:
+                        pass
             elif result is not None and isinstance(validator, Nullable):
                 default = validator.default_object_property
                 if default is not Nullable._UNDEFINED:

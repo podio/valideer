@@ -218,6 +218,74 @@ class TestValidator(unittest.TestCase):
                 self._testValidation(V.parse(get_schema(), required_properties=True),
                                      valid=[missing_properties[1]])
 
+    def test_ignore_optional_property_errors_parse_parameter(self):
+        schema = {
+            "+foo": "number",
+            "?bar": "boolean",
+            "?nested": [{
+                "+baz": "string",
+                "?zoo": "number",
+            }]
+        }
+        invalid_required = [
+            {"foo": "2", "bar": True},
+        ]
+        invalid_optional = [
+            {"foo": 3, "bar": "nan"},
+            {"foo": 3.1, "nested": [{"baz": "x", "zoo": "12"}]},
+            {"foo": 0, "nested": [{"baz": 1, "zoo": 2}]},
+        ]
+        adapted = [
+            {"foo": 3},
+            {"foo": 3.1, "nested": [{"baz": "x"}]},
+            {"foo": 0},
+        ]
+        for _ in xrange(3):
+            self._testValidation(V.parse(schema, ignore_optional_property_errors=False),
+                                 invalid=invalid_required + invalid_optional)
+            self._testValidation(V.parse(schema, ignore_optional_property_errors=True),
+                                 invalid=invalid_required,
+                                 adapted=zip(invalid_optional, adapted))
+
+    def test_parsing_ignore_optional_property_errors(self):
+        get_schema = lambda: V.Nullable({
+            "+foo": "number",
+            "?bar": "boolean",
+            "?nested": [{
+                "+baz": "string",
+                "?zoo": "number",
+            }]
+        })
+        invalid_required = [
+            {"foo": "2", "bar": True},
+        ]
+        invalid_optional = [
+            {"foo": 3, "bar": "nan"},
+            {"foo": 3.1, "nested": [{"baz": "x", "zoo": "12"}]},
+            {"foo": 0, "nested": [{"baz": 1, "zoo": 2}]},
+        ]
+        adapted = [
+            {"foo": 3},
+            {"foo": 3.1, "nested": [{"baz": "x"}]},
+            {"foo": 0},
+        ]
+        for _ in xrange(3):
+            with V.parsing(ignore_optional_property_errors=False):
+                self._testValidation(get_schema(),
+                                     invalid=invalid_required + invalid_optional)
+            with V.parsing(ignore_optional_property_errors=True):
+                self._testValidation(get_schema(),
+                                     invalid=invalid_required,
+                                     adapted=zip(invalid_optional, adapted))
+
+            # gotcha: calling parse() with ignore_optional_property_errors=True
+            # is not equivalent to the above call because the V.Nullable() calls in
+            # get_schema have already called implicitly parse() without parameters.
+            self._testValidation(V.parse(get_schema(), ignore_optional_property_errors=False),
+                                 invalid=invalid_required + invalid_optional)
+            self._testValidation(V.parse(get_schema(), ignore_optional_property_errors=True),
+                                 invalid=invalid_required + invalid_optional)
+
     def test_adapt_missing_property(self):
         self._testValidation({"foo": "number", "?bar": V.Nullable("boolean", False)},
                              adapted=[({"foo": -12}, {"foo": -12, "bar": False})])

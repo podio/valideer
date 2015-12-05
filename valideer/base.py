@@ -57,7 +57,8 @@ class ValidationError(ValueError):
         return self
 
 
-def parse(obj, required_properties=None, additional_properties=None):
+def parse(obj, required_properties=None, additional_properties=None,
+          ignore_optional_property_errors=None):
     """Try to parse the given ``obj`` as a validator instance.
 
     :param obj: The object to be parsed. If it is a...:
@@ -92,6 +93,15 @@ def parse(obj, required_properties=None, additional_properties=None):
         - ``None`` to use the value of the
           :py:attr:`~valideer.validators.Object.ADDITIONAL_PROPERTIES` attribute.
 
+    :param ignore_optional_property_errors: Determines if invalid optional
+        properties are ignored:
+
+        - ``True`` to ignore invalid optional properties.
+        - ``False`` to raise ValidationError for invalid optional properties.
+        - ``None`` to use the value of the
+          :py:attr:`~valideer.validators.Object.IGNORE_OPTIONAL_PROPERTY_ERRORS`
+          attribute.
+
     :raises SchemaError: If no appropriate validator could be found.
 
     .. warning:: Passing ``required_properties`` and/or ``additional_properties``
@@ -123,9 +133,12 @@ def parse(obj, required_properties=None, additional_properties=None):
                     })
                 })
     """
-    if not (required_properties is additional_properties is None):
+    if not (required_properties is
+            additional_properties is
+            ignore_optional_property_errors is None):
         with parsing(required_properties=required_properties,
-                     additional_properties=additional_properties):
+                     additional_properties=additional_properties,
+                     ignore_optional_property_errors=ignore_optional_property_errors):
             return parse(obj)
 
     validator = None

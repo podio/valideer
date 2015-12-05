@@ -2,7 +2,7 @@ import inspect
 from contextlib import contextmanager
 from threading import RLock
 from decorator import decorator
-from .compat import with_metaclass
+from .compat import with_metaclass, iteritems
 
 __all__ = [
     "ValidationError", "SchemaError", "Validator", "accepts", "returns", "adapts",
@@ -72,8 +72,25 @@ def parse(obj, required_properties=None, additional_properties=None):
           order. The caller is responsible for ensuring there are no ambiguous
           values that can be parsed by more than one factory.
 
-    :param required_properties: See the respective :py:func:`parsing` parameter.
-    :param additional_properties: See the respective :py:func:`parsing` parameter.
+    :param required_properties: Specifies for this parse call whether parsed
+        :py:class:`~valideer.validators.Object` properties are required or
+        optional by default. It can be:
+
+        - ``True`` for required.
+        - ``False`` for optional.
+        - ``None`` to use the value of the
+          :py:attr:`~valideer.validators.Object.REQUIRED_PROPERTIES` attribute.
+
+    :param additional_properties: Specifies for this parse call the schema of
+        all :py:class:`~valideer.validators.Object` properties that are not
+        explicitly defined as optional or required. It can also be:
+
+        - ``True`` to allow any value for additional properties.
+        - ``False`` to disallow any additional properties.
+        - :py:attr:`~valideer.validators.Object.REMOVE` to remove any additional
+          properties from the adapted object.
+        - ``None`` to use the value of the
+          :py:attr:`~valideer.validators.Object.ADDITIONAL_PROPERTIES` attribute.
 
     :raises SchemaError: If no appropriate validator could be found.
 
@@ -136,47 +153,26 @@ def parse(obj, required_properties=None, additional_properties=None):
 
 
 @contextmanager
-def parsing(required_properties=None, additional_properties=None):
+def parsing(**kwargs):
     """
     Context manager for overriding the default validator parsing rules for the
     following code block.
-
-    :param required_properties: Specifies for this parse call whether parsed
-        :py:class:`~valideer.validators.Object` properties are required or
-        optional by default. It can be:
-
-        - ``True`` for required.
-        - ``False`` for optional.
-        - ``None`` to use the value of the
-          :py:attr:`~valideer.validators.Object.REQUIRED_PROPERTIES` attribute.
-
-    :param additional_properties: Specifies for this parse call the schema of
-        all :py:class:`~valideer.validators.Object` properties that are not
-        explicitly defined as optional or required. It can also be:
-
-        - ``True`` to allow any value for additional properties.
-        - ``False`` to disallow any additional properties.
-        - :py:attr:`~valideer.validators.Object.REMOVE` to remove any additional
-          properties from the adapted object.
-        - ``None`` to use the value of the
-          :py:attr:`~valideer.validators.Object.ADDITIONAL_PROPERTIES` attribute.
     """
 
     from .validators import Object
     with _VALIDATOR_FACTORIES_LOCK:
-        if required_properties is not None:
-            old_required_properties = Object.REQUIRED_PROPERTIES
-            Object.REQUIRED_PROPERTIES = required_properties
-        if additional_properties is not None:
-            old_additional_properties = Object.ADDITIONAL_PROPERTIES
-            Object.ADDITIONAL_PROPERTIES = additional_properties
+        old_values = {}
+        for key, value in iteritems(kwargs):
+            if value is not None:
+                attr = key.upper()
+                old_values[key] = getattr(Object, attr)
+                setattr(Object, attr, value)
         try:
             yield
         finally:
-            if required_properties is not None:
-                Object.REQUIRED_PROPERTIES = old_required_properties
-            if additional_properties is not None:
-                Object.ADDITIONAL_PROPERTIES = old_additional_properties
+            for key, value in iteritems(kwargs):
+                if value is not None:
+                    setattr(Object, key.upper(), old_values[key])
 
 
 def register(name, validator):

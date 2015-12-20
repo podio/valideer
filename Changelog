@@ -1,3 +1,8 @@
+0.4.2
+=====
+- Added ``ignore_optional_property_errors`` optional parameter in ``parse()`` and 
+  ``parsing()``.
+
 0.4.1
 =====
 - Added ``returns`` decorator.

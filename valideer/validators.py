@@ -582,7 +582,7 @@ class Mapping(Type):
     def validate(self, value, adapt=True):
         super(Mapping, self).validate(value)
         if adapt:
-            return dict(self._iter_validated_items(value, adapt))
+            return value.__class__(self._iter_validated_items(value, adapt))
         for _ in self._iter_validated_items(value, adapt):
             pass
 
@@ -665,7 +665,7 @@ class Object(Type):
             raise ValidationError("missing required properties: %s" %
                                   list(missing_required), value)
 
-        result = dict(value) if adapt else None
+        result = value.copy() if adapt else None
         for name, validator in self._named_validators:
             if name in value:
                 try:

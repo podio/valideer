@@ -547,6 +547,22 @@ class TestValidator(unittest.TestCase):
         self.assertRaises(TypeError, V.Condition, C)
         self.assertRaises(TypeError, V.Condition(is_even, traps=()).validate, [2, 4])
 
+    def test_adapt_ordered_dict_object(self):
+        self._testValidation(
+            {"foo": V.AdaptTo(int), "bar": V.AdaptTo(float)},
+            adapted=[(
+                collections.OrderedDict([("foo", "1"), ("bar", "2")]),
+                collections.OrderedDict([("foo", 1), ("bar", 2.0)])
+            )])
+
+    def test_adapt_ordered_dict_mapping(self):
+        self._testValidation(
+            V.Mapping("string", V.AdaptTo(float)),
+            adapted=[(
+                collections.OrderedDict([("foo", "1"), ("bar", "2")]),
+                collections.OrderedDict([("foo", 1.0), ("bar", 2.0)])
+            )])
+
     def test_adapt_by(self):
         self._testValidation(V.AdaptBy(hex, traps=TypeError),
                              invalid=[1.2, "1"],
@@ -945,7 +961,9 @@ class TestValidator(unittest.TestCase):
         for from_value, to_value in [(value, value) for value in valid] + list(adapted):
             self.assertTrue(validator.is_valid(from_value))
             validator.validate(from_value, adapt=False)
-            self.assertEqual(validator.validate(from_value, adapt=True), to_value)
+            adapted_value = validator.validate(from_value, adapt=True)
+            self.assertIs(adapted_value.__class__, to_value.__class__)
+            self.assertEqual(adapted_value, to_value)
         for value, error in [(value, None) for value in invalid] + list(errors):
             self.assertFalse(validator.is_valid(value))
             for adapt in True, False:

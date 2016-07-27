@@ -556,7 +556,7 @@ class TestValidator(unittest.TestCase):
         for obj in f, V.Condition(f):
             self._testValidation(obj,
                                  valid=[xrange(11), xrange(1000, 1011)],
-                                 invalid=[xrange(12), range(5) + [11]])
+                                 invalid=[xrange(12), [0, 1, 2, 3, 4, 11]])
 
     def test_adapt_ordered_dict_object(self):
         self._testValidation(

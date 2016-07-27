@@ -202,8 +202,8 @@ class Condition(Validator):
     """
 
     def __init__(self, predicate, traps=Exception):
-        if not inspect.isroutine(predicate):
-            raise TypeError("Routine expected, %s given" % predicate.__class__)
+        if not (callable(predicate) and not inspect.isclass(predicate)):
+            raise TypeError("Callable expected, %s given" % predicate.__class__)
         self._predicate = predicate
         self._traps = traps
 
@@ -231,8 +231,8 @@ class Condition(Validator):
 
 @Condition.register_factory
 def _ConditionFactory(obj):
-    """Parse a function or method as a Condition validator."""
-    if inspect.isroutine(obj):
+    """Parse a callable as a Condition validator."""
+    if callable(obj) and not inspect.isclass(obj):
         return Condition(obj)
 
 

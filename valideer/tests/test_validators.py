@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from functools import partial
+from functools import partial, wraps
 import collections
 import json
 import re
@@ -546,6 +546,17 @@ class TestValidator(unittest.TestCase):
 
         self.assertRaises(TypeError, V.Condition, C)
         self.assertRaises(TypeError, V.Condition(is_even, traps=()).validate, [2, 4])
+
+    def test_condition_partial(self):
+        def max_range(sequence, range_limit):
+            return max(sequence) - min(sequence) <= range_limit
+
+        f = wraps(max_range)(partial(max_range, range_limit=10))
+
+        for obj in f, V.Condition(f):
+            self._testValidation(obj,
+                                 valid=[xrange(11), xrange(1000, 1011)],
+                                 invalid=[xrange(12), range(5) + [11]])
 
     def test_adapt_ordered_dict_object(self):
         self._testValidation(

@@ -8,16 +8,16 @@ Valideer
 .. image:: https://coveralls.io/repos/podio/valideer/badge.svg?branch=master
     :target: https://coveralls.io/r/podio/valideer?branch=master
 
-.. image:: https://pypip.in/status/valideer/badge.svg
+.. image:: https://img.shields.io/pypi/status/valideer.svg
     :target: https://pypi.python.org/pypi/valideer/
 
-.. image:: https://pypip.in/version/valideer/badge.svg
+.. image:: https://img.shields.io/pypi/v/valideer.svg
     :target: https://pypi.python.org/pypi/valideer/
 
-.. image:: https://pypip.in/py_versions/valideer/badge.svg
+.. image:: https://img.shields.io/pypi/pyversions/valideer.svg
     :target: https://pypi.python.org/pypi/valideer/
 
-.. image:: https://pypip.in/license/valideer/badge.svg
+.. image:: https://img.shields.io/pypi/l/valideer.svg
     :target: https://pypi.python.org/pypi/valideer/
 
 Lightweight data validation and adaptation library for Python.

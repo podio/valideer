@@ -1,12 +1,18 @@
 # Config file for automatic testing at travis-ci.org
 
 language: python
-python:
-  - "3.8"
-  - "3.4"
-  - "3.3"
-  - "2.7"
-  - "pypy"
+dist: xenial
+
+matrix:
+  include:
+    - python:
+        - "3.8"
+        - "3.4"
+        - "2.7"
+        - "pypy"
+    - python: "3.3"
+      dist: trusty
+
 install: pip install coveralls
 script: coverage run --source=valideer setup.py test
 after_success: coveralls

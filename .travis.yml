@@ -5,13 +5,12 @@ dist: xenial
 
 matrix:
   include:
-    - python:
-        - "3.8"
-        - "3.4"
-        - "2.7"
-        - "pypy"
+    - python: "3.8"
+    - python: "3.4"
     - python: "3.3"
       dist: trusty
+    - python: "2.7"
+    - python: "pypy"
 
 install: pip install coveralls
 script: coverage run --source=valideer setup.py test

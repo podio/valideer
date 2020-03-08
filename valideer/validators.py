@@ -1,6 +1,5 @@
 from .base import Validator, ValidationError, parse, get_type_name
-from .compat import string_types, izip, imap, iteritems
-import collections
+from .compat import string_types, izip, imap, iteritems, collections_abc
 import datetime
 import inspect
 import numbers
@@ -466,7 +465,7 @@ def _PatternFactory(obj):
 class HomogeneousSequence(Type):
     """A validator that accepts homogeneous, non-fixed size sequences."""
 
-    accept_types = collections.Sequence
+    accept_types = collections_abc.Sequence
     reject_types = string_types
 
     def __init__(self, item_schema=None, min_length=None, max_length=None):
@@ -519,7 +518,7 @@ def _HomogeneousSequenceFactory(obj):
 class HeterogeneousSequence(Type):
     """A validator that accepts heterogeneous, fixed size sequences."""
 
-    accept_types = collections.Sequence
+    accept_types = collections_abc.Sequence
     reject_types = string_types
 
     def __init__(self, *item_schemas):
@@ -561,7 +560,7 @@ def _HeterogeneousSequenceFactory(obj):
 class Mapping(Type):
     """A validator that accepts mappings (:py:class:`collections.Mapping` instances)."""
 
-    accept_types = collections.Mapping
+    accept_types = collections_abc.Mapping
 
     def __init__(self, key_schema=None, value_schema=None):
         """Instantiate a :py:class:`Mapping` validator.
@@ -610,7 +609,7 @@ class Object(Type):
     "properties", i.e. string keys.
     """
 
-    accept_types = collections.Mapping
+    accept_types = collections_abc.Mapping
 
     REQUIRED_PROPERTIES = False
     ADDITIONAL_PROPERTIES = True

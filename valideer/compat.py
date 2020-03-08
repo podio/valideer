@@ -21,6 +21,12 @@ else:  # pragma: no cover
     iteritems = dict.items
     xrange = range
 
+# Fix Python > 3.7 deprecation and preserve Python 3.3 compatibility
+try:
+    import collections.abc as collections_abc
+except ImportError:
+    import collections as collections_abc
+
 
 def with_metaclass(mcls):
     def decorator(cls):

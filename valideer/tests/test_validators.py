@@ -6,7 +6,7 @@ import json
 import re
 import unittest
 import valideer as V
-from valideer.compat import long, unicode, xrange, string_types, int_types
+from valideer.compat import long, unicode, xrange, string_types, int_types, collections_abc
 
 
 class Fraction(V.Type):
@@ -942,8 +942,8 @@ class TestValidator(unittest.TestCase):
         V.set_name_for_types("integer", int, long)
         V.set_name_for_types("number", float)
         V.set_name_for_types("string", str, unicode)
-        V.set_name_for_types("array", list, collections.Sequence)
-        V.set_name_for_types("object", dict, collections.Mapping)
+        V.set_name_for_types("array", list, collections_abc.Sequence)
+        V.set_name_for_types("object", dict, collections_abc.Mapping)
 
         self._testValidation({"+foo": "number",
                               "?bar": ["integer"],

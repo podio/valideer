@@ -466,7 +466,7 @@ def _PatternFactory(obj):
 class HomogeneousSequence(Type):
     """A validator that accepts homogeneous, non-fixed size sequences."""
 
-    accept_types = collections.Sequence
+    accept_types = collections.abc.Sequence
     reject_types = string_types
 
     def __init__(self, item_schema=None, min_length=None, max_length=None):

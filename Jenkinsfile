@@ -78,7 +78,7 @@ pipeline {
             steps {
                 script {
                     def scanOutput = 'trufflehog_output.json'
-                    def repoPath = "${WORKSPACE}/valideer"
+                    def repoPath = "${env.WORKSPACE}/valideer"
 
                     echo "🔍 Running TruffleHog Git scan on repo path: ${repoPath}, branch: ${env.branchName}"
 

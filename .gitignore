@@ -4,4 +4,5 @@ dist/
 valideer.egg-info/
 .coverage
 .pydevproject
+.project.DS_Store
 .project

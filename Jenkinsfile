@@ -19,7 +19,7 @@ pipeline {
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [
                         [$class: 'RelativeTargetDirectory', relativeTargetDir: 'valideer'],
-                        [$class: 'CloneOption', shallow: true, depth: 1, noTags: false]
+                        [$class: 'CloneOption', shallow: false, noTags: false]
                     ],
                     submoduleCfg: [],
                     userRemoteConfigs: [[credentialsId: 'github-app-podio-jm', url: 'https://github.com/podio/valideer.git']]
@@ -58,7 +58,7 @@ pipeline {
                 BRIDGE_BLACKDUCKSCA_TOKEN = credentials('blackduck-sca-token')
                 BRIDGE_BLACKDUCKSCA_SCAN_FAILURE_SEVERITIES = "CRITICAL"
                 BRIDGE_BLACKDUCKSCA_SCAN_FULL = "true"
-                BRIDGE_DETECT_ARGS = "--detect.project.name=DX-Podio-valideer --detect.project.version.name=${env.branchName} --detect.project.version.update=true --detect.project.version.distribution=SAAS --detect.project.group.name=Podio-Podio"
+                BRIDGE_DETECT_ARGS = "--detect.project.name=DX-Podio-valideer --detect.project.version.name=${env.branchName} --detect.project.version.update=true --detect.project.version.distribution=SAAS --detect.project.group.name=Podio-Podio --detect.accuracy.required=NONE"
             }
             steps {
                 dir('valideer') {

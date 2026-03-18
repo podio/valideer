@@ -39,7 +39,7 @@ pipeline {
             steps {
                 dir('valideer') {
                     script {
-                        status = sh returnStatus: true, script: '''
+                        def status = sh returnStatus: true, script: '''
                             bridge-cli --stage polaris
                         '''
                         if (status == 8) {
@@ -58,12 +58,12 @@ pipeline {
                 BRIDGE_BLACKDUCKSCA_TOKEN = credentials('blackduck-sca-token')
                 BRIDGE_BLACKDUCKSCA_SCAN_FAILURE_SEVERITIES = "CRITICAL"
                 BRIDGE_BLACKDUCKSCA_SCAN_FULL = "true"
-                BRIDGE_DETECT_ARGS = "--detect.project.name=DX-Podio-valideer --detect.project.version.name=${env.branchName} --detect.project.version.update=true --detect.project.version.distribution=SAAS --detect.project.group.name=Podio-Podio --detect.accuracy.required=NONE"
+                BRIDGE_DETECT_ARGS = "--detect.project.name=DX-Podio-valideer --detect.project.version.name=${env.branchName} --detect.project.version.update=true --detect.project.version.distribution=SAAS --detect.project.group.name=Podio-Podio --detect.accuracy.required=NONE --detect.excluded.detector.types=PIP"
             }
             steps {
                 dir('valideer') {
                     script {
-                        status = sh returnStatus: true, script: '''
+                        def status = sh returnStatus: true, script: '''
                             bridge-cli --stage blackducksca
                         '''
                         if (status != 0) {

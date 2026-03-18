@@ -87,7 +87,7 @@ pipeline {
                           artifacts.progress.com/ci-local-docker/trufflesecurity/trufflehog:3.88.29-amd64 \
                           git file:/usr/src \
                           --branch="${env.branchName}" \
-                          --results=verified,unknown \
+                          --results=verified \
                           --force-skip-binaries \
                           --force-skip-archives \
                           --json \

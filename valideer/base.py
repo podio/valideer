@@ -253,7 +253,7 @@ class Validator(object):
     def error(self, value):
         """Helper method that can be called when ``value`` is deemed invalid.
 
-        Can be overriden to provide customized :py:exc:`ValidationError` subclasses.
+        Can be overridden to provide customized :py:exc:`ValidationError` subclasses.
         """
         raise ValidationError("must be %s" % self.humanized_name, value)
 

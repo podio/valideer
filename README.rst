@@ -267,7 +267,7 @@ Additional object properties
 ############################
 
 Any properties that are not specified as either required or optional are allowed
-by default. This default can be overriden by calling ``parsing`` with
+by default. This default can be overridden by calling ``parsing`` with
 ``additional_properties=``
 
 - ``False`` to disallow all additional properties
